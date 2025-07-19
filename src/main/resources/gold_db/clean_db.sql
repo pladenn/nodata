@@ -1,5 +1,5 @@
- drop table if exists databasechangeloglock;
- drop table if exists databasechangelog;
+drop table if exists databasechangeloglock;
+drop table if exists databasechangelog;
 drop table if exists property;
 drop table if exists property_category;
 drop table if exists dictionary_mapping;
