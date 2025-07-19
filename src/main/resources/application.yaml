@@ -1,0 +1,20 @@
+server:
+  port: 9955
+spring:
+  liquibase:
+    change-log: classpath:gold_db/changelog.xml
+  datasource:
+    driver-class-name: org.postgresql.Driver
+#    url: jdbc:postgresql://localhost:5432/nodata
+    url: jdbc:postgresql://localhost:5432/nodata1
+    username: postgres
+    password: postgres
+  mvc:
+    view:
+      prefix: /templates/
+      suffix: .jsp
+nodata:
+  system:
+    data-base-url: "${spring.datasource.url}"
+    data-base-username: "${spring.datasource.username}"
+    data-base-password: "${spring.datasource.password}"

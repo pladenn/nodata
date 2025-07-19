@@ -1,0 +1,17 @@
+INSERT INTO public.content (id, type, lesson_id) VALUES ('ec2c18e8-a5a5-492b-a1e7-60cdec5d2e42', 1, '0a968685-4a9a-43ac-99bf-4be5b276cdd3');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('2dc1dd4f-c3d2-45ca-837a-a9597dbd1245', 3, '0a968685-4a9a-43ac-99bf-4be5b276cdd3');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('9c8ec52f-d9f0-4e03-a690-eda7023a4cab', 4, '0a968685-4a9a-43ac-99bf-4be5b276cdd3');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('3a5faf1e-7ca5-4922-b7d5-5d0937126ad0', 1, 'd7ba1b08-c2ba-4a13-9b9c-08c1c41d195f');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('c5464101-847a-4a80-8b08-a794568b469a', 3, 'd7ba1b08-c2ba-4a13-9b9c-08c1c41d195f');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('8dfe7985-15d8-4348-a17b-933d87030de9', 4, 'd7ba1b08-c2ba-4a13-9b9c-08c1c41d195f');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('08083fcc-665b-431f-bebd-b1dc54665493', 1, 'af89459e-c28e-42db-ac02-512e639605f3');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('6a9819cf-b8ca-4a03-b8e9-1d2945ab8c47', 3, 'af89459e-c28e-42db-ac02-512e639605f3');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('f6af29b0-3edf-4dd1-b55f-07b6005e73b6', 4, 'af89459e-c28e-42db-ac02-512e639605f3');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('c7d88fc8-f530-4ad7-ad06-13c776487b48', 5, '7c849716-3164-41b5-83d5-3daa10df81b4');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('5fc48299-a9a5-4fee-8c73-87b123b394b3', 5, '0a968685-4a9a-43ac-99bf-4be5b276cdd3');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('a9b3b6bf-3134-452b-a9a4-a44766a16bdf', 5, 'af89459e-c28e-42db-ac02-512e639605f3');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('0baf5981-1d24-41ee-8bd2-954b4ec5dc4c', 1, '7c849716-3164-41b5-83d5-3daa10df81b4');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('66b126ca-bf76-495e-b709-e1cbf53d3e27', 3, '7c849716-3164-41b5-83d5-3daa10df81b4');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('80c98057-d6e4-42e5-bd63-08b8af95a756', 4, '7c849716-3164-41b5-83d5-3daa10df81b4');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('3b2f50af-04cc-47b2-8164-bee37388f1a1', 5, 'abc6b6c1-9181-40c8-bdc8-36d48bb35f81');
+INSERT INTO public.content (id, type, lesson_id) VALUES ('6810becb-eecc-46ef-8419-387bd269e29f', 5, 'd7ba1b08-c2ba-4a13-9b9c-08c1c41d195f');

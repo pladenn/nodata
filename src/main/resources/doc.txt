@@ -1,0 +1,9 @@
+
+exceptions
+js NULL problem
+metadata
+virtual threads
+action: delete dictionary/environment/group
+complex action (jmespath)
+add null value into dictionary
+??? default value calculation for a parameter

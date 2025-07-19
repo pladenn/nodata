@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        .item {
+            display: block;
+        }
+
+        .item-hidden {
+            display: none;
+        }
+
+        #fff > .item:hover {
+            background-color: #3e8e41;
+            display: inline;
+            float: left;
+        }
+
+        #fff > .item:hover + .item-hidden {
+            display: inline;
+            float: left;
+            position: absolute;
+            z-index: 1;
+        }
+
+        #fff > .item:hover > .item-hidden:hover {
+            display: inline;
+            float: left;
+            position: absolute;
+            z-index: 1;
+        }
+
+        #fff > .item:hover > .item-hidden:hover .item:hover {
+            background-color: #3e8e41;
+            display: inline;
+            float: left;
+        }
+
+    </style>
+</head>
+<body>
+
+<div style="display: block">Actions</div>
+
+<div style="display: block" >
+    <div style="display: inline-block;" id="fff">
+        <div class="item">Act 1</div>
+        <div class="item">Act 2</div>
+        <!--<div style="display: inline; float: left;">Act 2</div>-->
+
+        <div class="item-hidden">
+            <div class="item">Act 21</div>
+            <div class="item-hidden">
+                <div class="item">Act 211</div>
+                <div class="item">Act 212</div>
+            </div>
+
+            <div class="item">Act 22</div>
+        </div>
+
+<!--
+        <div style="display: inline;  display: none; float: left; position: absolute; z-index: 1;">
+
+            <div style="display: inline; display: block;">Act 21</div>
+            <div style="display: inline;  float: left; position: absolute; z-index: 1; width: fit-content;">
+                <div style="display: inline-block; width: 100px;">Act 211</div>
+                <div style="display: inline-block; width: 100px;">Act 212</div>
+            </div>
+
+            <div style="display: inline">Act 22</div>
+            <div style="display: inline;  float: left; position: absolute; z-index: 1; width: fit-content;">
+                <div style="display: inline-block; width: 100px;">Act 221</div>
+                <div style="display: inline-block; width: 100px;">Act 222</div>
+            </div>
+
+        </div>
+-->
+
+        <div class="item">Act 3</div>
+        <div class="item">Act 4</div>
+    </div>
+</div>
+
+<div style="display: block">-----</div>
+</body>
+</html>
