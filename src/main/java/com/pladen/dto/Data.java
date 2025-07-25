@@ -11,13 +11,11 @@ import java.util.Map;
 @Builder
 @AllArgsConstructor
 public class Data {
-    String title;
     String description;
-    String menu;
     List<MenuItem> menuItems;
-    List<Parameter> parameters;
-    Map<String, Parameter> actionParameters;
-    Map<String, Parameter> systemParameters;
+    List<ParameterDto> parameters;
+    Map<String, ParameterDto> actionParameters;
+    Map<String, ParameterDto> systemParameters;
     List<Column> columns;
     List<Map<String, String>> data;
     List<ActionLink> actionLinks;

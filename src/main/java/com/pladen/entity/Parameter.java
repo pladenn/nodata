@@ -1,6 +1,7 @@
 package com.pladen.entity;
 
 import jakarta.persistence.*;
+import jakarta.persistence.Column;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -34,10 +35,12 @@ public class Parameter {
     DataType type;
 
     String defaultValue;
-
     Integer order;
-
     Boolean editable;
-
     String title;
+    @Column(name = "dictionary_id")
+    UUID dictionaryLinkId;
+    String nameColumn;
+    String valueColumn;
+    Boolean editableDictionary;
 }

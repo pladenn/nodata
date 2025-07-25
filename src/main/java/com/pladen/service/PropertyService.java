@@ -1,7 +1,6 @@
 package com.pladen.service;
 
 import com.pladen.entity.Property;
-import com.pladen.repository.ParameterRepository;
 import com.pladen.repository.PropertyRepository;
 import com.pladen.service.configuration.NodataConfiguration;
 import lombok.NonNull;
@@ -16,7 +15,8 @@ import java.util.stream.Stream;
 
 import static java.util.Objects.*;
 import static java.util.stream.Collectors.toMap;
-import static org.apache.commons.lang3.StringUtils.*;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.replaceEach;
 import static org.springframework.util.CollectionUtils.isEmpty;
 
 @Service
@@ -34,7 +34,7 @@ public class PropertyService {
                 .entrySet()
                 .stream()
                 .collect(toMap(
-                        k -> "{" + CONTEXT_PROPERTY_PREFIX + "." + SYSTEM_PROPERTY_PREFIX + "." + k.getKey() + "}",
+                        k -> CONTEXT_PROPERTY_PREFIX + "." + SYSTEM_PROPERTY_PREFIX + "." + k.getKey(),
                         v -> requireNonNullElse(environment.getProperty(v.getValue()), v.getValue())
                 ));
 
@@ -70,6 +70,7 @@ public class PropertyService {
     }
 
     public Map<String, String> mergeProperties(Map<String, String>... properties) {
+        //todo merge and evaluate
         return Stream.of(properties)
                 .filter(Objects::nonNull)
                 .map(Map::entrySet)
@@ -130,9 +131,9 @@ public class PropertyService {
         return propertyRepository.findByPropertyCategoryCodeAndGroup(categoryCode, originalGroup)
                 .stream()
                 .collect(toMap(
-                        k -> "{" + k.getPropertyCategory().getName() + "." +
+                        k -> k.getPropertyCategory().getName() + "." +
                                 requireNonNullElseGet(groupName, k::getGroup) + "." +
-                                k.getProperty() + "}",
+                                k.getProperty(),
                         v -> populateWithProperties(v.getValue(), properties)
                 ));
     }

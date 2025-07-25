@@ -28,6 +28,7 @@ public class ActionLink {
 
     String title;
     boolean isActionTarget;
+    boolean mountedToRow;
     boolean viaParameters;
     Integer order;
 }

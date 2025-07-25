@@ -478,10 +478,7 @@
         let select = document.createElement("select");
         div.append(select);
         select.onchange = function() {
-            alert(this.value);
-            alert(this.nextElementSibling);
             this.nextElementSibling.value=this.value;
-            alert(this.nextElementSibling.value);
         };
 
         let input = document.createElement("input");
@@ -540,7 +537,7 @@
 
             let parameterValue = fromNullValue(parameter.value);
 
-            if (parameter.availableValues != null && parameter.editable) {
+            if (parameter.availableValues != null && parameter.editableDictionary) {
                 paramDiv.insertBefore(label, button);
                 paramDiv.insertBefore(createEditableSelect(parameter), button);
             } else if (parameter.availableValues != null) {
