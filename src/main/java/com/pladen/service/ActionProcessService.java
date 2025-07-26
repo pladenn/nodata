@@ -298,7 +298,8 @@ public class ActionProcessService {
     }
 
     private Parameter mapToParameterDto(com.pladen.entity.Parameter parameter, Map<String, String> parameters, boolean addDictionaryValues) {
-        final Parameter.ParameterBuilder parameterBuilder = Parameter.builder()
+
+        return Parameter.builder()
                 .id(parameter.getId())
                 .name(parameter.getName())
                 .value(
@@ -308,11 +309,12 @@ public class ActionProcessService {
                 )
                 .type(parameter.getType())
                 .title(parameter.getTitle())
-                .editable(parameter.getEditable());
+                .editable(parameter.getEditable())
+                .build();
 
-        return addDictionaryValues
+/*        return addDictionaryValues
                 ? addDictionaryValues(parameterBuilder, parameter.getId(), parameters).build()
-                : parameterBuilder.build();
+                : parameterBuilder.build();*/
     }
 
     private String populateWithPropertiesAndParameterValues(String source) {
