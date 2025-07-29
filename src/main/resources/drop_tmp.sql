@@ -1,0 +1,10 @@
+drop table tmp_action;
+drop table tmp_action_link;
+drop table tmp_action_link_group;
+drop table tmp_action_link_mapping;
+drop table tmp_column;
+drop table tmp_connection;
+drop table tmp_parameter;
+drop table tmp_property;
+drop table tmp_property_category;
+drop table tmp_del_sys_obj;

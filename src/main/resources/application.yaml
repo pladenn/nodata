@@ -2,11 +2,11 @@ server:
   port: 9955
 spring:
   liquibase:
-    change-log: classpath:gold_db_4/changelog.xml
+    change-log: classpath:db/changelog.xml
   datasource:
     driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://localhost:5432/nodata
-#    url: jdbc:postgresql://localhost:5432/nodata1
+#    url: jdbc:postgresql://localhost:5432/nodata
+    url: jdbc:postgresql://localhost:5432/nodata1
     username: postgres
     password: postgres
   mvc:

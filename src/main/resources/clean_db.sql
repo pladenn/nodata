@@ -9,3 +9,4 @@ drop table if exists parameter;
 drop table if exists action_link;
 drop table if exists action;
 drop table if exists connection;
+drop table if exists sys_obj;
