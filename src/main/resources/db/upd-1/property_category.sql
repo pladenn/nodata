@@ -51,3 +51,4 @@ INSERT INTO public.property_category (id, code, name) VALUES ('eea91854-9484-b7a
 INSERT INTO public.property_category (id, code, name) VALUES ('224d00be-174d-b9bd-449a-37256fb59c77', 'a9b34d16-9fe4-0d3d-07da-694b9f67cd4d', 'action');
 INSERT INTO public.property_category (id, code, name) VALUES ('ff550361-5215-924c-0f57-579c27fa6f92', '8096367c-cc1a-473e-a9d0-33041aa92d61', 'action');
 INSERT INTO public.property_category (id, code, name) VALUES ('b11a907f-ab1a-ea9b-f30c-5874a9c63970', '2ec6e7bc-125d-19b8-4138-468bf5e6f994', 'action');
+INSERT INTO public.property_category (id, code, name) VALUES ('fc88d0ea-e64b-b9aa-3638-d630ef05a34e', 'abdaa370-2c7b-dc78-65e1-5724bf54101a', 'action properties');

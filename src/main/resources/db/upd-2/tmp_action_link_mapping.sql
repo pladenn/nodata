@@ -10,6 +10,7 @@ create table tmp_action_link_mapping
 alter table tmp_action_link_mapping
     owner to postgres;
 
+INSERT INTO public.tmp_action_link_mapping (id, action_link_id, parameter_id, mapping, default_value) VALUES ('0c463939-214e-4a97-fc38-2a5c7f4d2b82', 'ae27e88c-2df5-a77a-0792-2b87e8a3444d', 'c7fca4fe-15f7-c723-79da-c940efad8ca0', 'category_code', null);
 INSERT INTO public.tmp_action_link_mapping (id, action_link_id, parameter_id, mapping, default_value) VALUES ('072674c4-3658-ff6d-72d2-c49cee45ecd1', 'd2cc0f67-47ed-2415-41ad-54e49b750341', '35036f91-0af0-8a67-238e-4a098a497f1c', 'id', null);
 INSERT INTO public.tmp_action_link_mapping (id, action_link_id, parameter_id, mapping, default_value) VALUES ('4f918818-676d-2636-2784-65714438ee1f', 'd2cc0f67-47ed-2415-41ad-54e49b750341', '3204d61b-b0f2-2953-e54d-0b1d63bd8129', 'code', null);
 INSERT INTO public.tmp_action_link_mapping (id, action_link_id, parameter_id, mapping, default_value) VALUES ('34bc390a-b632-f1d9-58f1-07a7e66e02cc', 'd2cc0f67-47ed-2415-41ad-54e49b750341', 'de5364f5-47fa-a93f-3b03-4a7f15d0ae9d', 'connection_id', null);

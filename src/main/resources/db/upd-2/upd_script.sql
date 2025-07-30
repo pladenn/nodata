@@ -77,19 +77,6 @@ link_id = t2.link_id,
 variable = t2.variable
 ;
 
-MERGE INTO action_link_mapping t1 USING tmp_action_link_mapping t2 ON t1.id = t2.id WHEN NOT MATCHED THEN INSERT values (
-t2.id,
-t2.action_link_id,
-t2.parameter_id,
-t2.mapping,
-t2.default_value
-) WHEN MATCHED THEN UPDATE SET
-action_link_id = t2.action_link_id,
-parameter_id = t2.parameter_id,
-mapping = t2.mapping,
-default_value = t2.default_value
-;
-
 MERGE INTO "column" t1 USING tmp_column t2 ON t1.id = t2.id WHEN NOT MATCHED THEN INSERT values (
 t2.id,
 t2.action_id,
@@ -132,6 +119,28 @@ editable_dictionary = t2.editable_dictionary,
 dict_null_value = t2.dict_null_value
 ;
 
+MERGE INTO action_link_mapping t1 USING tmp_action_link_mapping t2 ON t1.id = t2.id WHEN NOT MATCHED THEN INSERT values (
+        t2.id,
+        t2.action_link_id,
+        t2.parameter_id,
+        t2.mapping,
+        t2.default_value
+    ) WHEN MATCHED THEN UPDATE SET
+    action_link_id = t2.action_link_id,
+    parameter_id = t2.parameter_id,
+    mapping = t2.mapping,
+    default_value = t2.default_value
+;
+
+MERGE INTO property_category t1 USING tmp_property_category t2 ON t1.id = t2.id WHEN NOT MATCHED THEN INSERT values (
+        t2.id,
+        t2.code,
+        t2.name
+    ) WHEN MATCHED THEN UPDATE SET
+    code = t2.code,
+    name = t2.name
+;
+
 MERGE INTO property t1 USING tmp_property t2 ON t1.id = t2.id WHEN NOT MATCHED THEN INSERT values (
 t2.id,
 t2."group",
@@ -145,14 +154,6 @@ value = t2.value,
 category_id = t2.category_id
 ;
 
-MERGE INTO property_category t1 USING tmp_property_category t2 ON t1.id = t2.id WHEN NOT MATCHED THEN INSERT values (
-t2.id,
-t2.code,
-t2.name
-) WHEN MATCHED THEN UPDATE SET
-code = t2.code,
-name = t2.name
-;
 
 --with tbl as (select 'action' tbl),
 --with tbl as (select 'action_link' tbl),

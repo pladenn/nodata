@@ -193,7 +193,20 @@ public class ActionProcessService {
     }
 
     private void setExtendedProperties() {
+        final List<ActionLink> extendedProperties = actionLinkRepository.findByParentActionIdAndActionLinkGroupGroup(currentAction.getId(),
+                "extended_properties");
 
+        extendedProperties.stream()
+                .sorted((a,b) -> a.getActionLinkGroup()
+                        .stream()
+                        .filter(g -> "extended_properties".equals(g.getGroup()))
+                        .findAny().map(ActionLinkGroup::getOrder).orElse(0)
+                        - b.getActionLinkGroup()
+                        .stream()
+                        .filter(g -> "extended_properties".equals(g.getGroup()))
+                        .findAny().map(ActionLinkGroup::getOrder).orElse(0)
+                )
+                .forEach(link -> {});
     }
 
     private void setExtendedParameters() {

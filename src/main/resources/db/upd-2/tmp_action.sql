@@ -171,30 +171,6 @@ select json_agg(json_build_object(
         \'items\', m.itms))
 from main m', null, 'SQL_DQL', 'Custom submenu', null, 'Custom submenu', null);
 INSERT INTO public.tmp_action (id, code, connection_id, query, content, execution_type, title, post_process, description, redirect) VALUES ('6e52b5a1-4b58-8992-2e51-1ec289b2dd83', 'system-remove-dictionary', 'd48b9a97-e13c-4961-9eff-d76f39abdffb', 'delete from dictionary where parameter_id = :parameter_id::uuid', null, 'SQL_DML', 'Remove dictionary', null, 'Remove dictionary', '{_original_url}');
-INSERT INTO public.tmp_action (id, code, connection_id, query, content, execution_type, title, post_process, description, redirect) VALUES ('dfe67d96-5391-4534-aa8c-a706d985896c', 'system-parameters', 'd48b9a97-e13c-4961-9eff-d76f39abdffb', e'select p.id,
-       p.name,
-       p.type,
-       p.title,
-       p.action_id,
-       p.default_value,
-       p.editable,
-       p."order",
-       a.code action_code,
-       coalesce(a.title, a.code) action_title,
-       da.code dictionary_code,
-       d.action_id dictionary_action_id, 
-       d.name_column,
-       d.value_column,
-       d.editable dictionary_editable,
-       da.title dictionary_name
-from parameter p
-         join action a on a.id = p.action_id
-         left join dictionary d on p.id = d.parameter_id
-         left join action da on da.id = d.action_id
-where (p.action_id = :action_id or :action_id::uuid is null)
-  and (p.id = :id or :id::uuid is null)
-  and (coalesce(:action_code::varchar, \'\') = \'\' OR a.code LIKE :action_code::varchar)
-order by p.action_id, p."order"', null, 'SQL_DQL', 'Parameters', null, 'Parameters for the action "{action_title}"({action_code})', null);
 INSERT INTO public.tmp_action (id, code, connection_id, query, content, execution_type, title, post_process, description, redirect) VALUES ('924039ab-a63f-2ef3-2578-616eefe35c1b', 'system-environments-dictionary', 'd48b9a97-e13c-4961-9eff-d76f39abdffb', e'with base_path as
          (select value bp
           from property p
@@ -544,3 +520,41 @@ from action_link l
          join action ca on ca.id = l.child_action_id
          join action pa on l.parent_action_id = pa.id
 order by l.parent_action_id, al."group", "order"', null, 'SQL_DQL', 'Links', null, 'Links', null);
+INSERT INTO public.tmp_action (id, code, connection_id, query, content, execution_type, title, post_process, description, redirect) VALUES ('dfe67d96-5391-4534-aa8c-a706d985896c', 'system-parameters', 'd48b9a97-e13c-4961-9eff-d76f39abdffb', e'select p.id,
+       p.name,
+       p.type,
+       p.title,
+       p.action_id,
+       p.default_value,
+       p.editable,
+       p."order",
+       a.code action_code,
+       coalesce(a.title, a.code) action_title,
+       da.code dictionary_code,
+       p.dictionary_id dictionary_action_id,
+       p.name_column,
+       p.value_column,
+       p.editable dictionary_editable,
+       da.title dictionary_name
+from parameter p
+         join action a on a.id = p.action_id
+         left join action_link al  on p.dictionary_id = al.id
+         left join action da on da.id = al.child_action_id
+where (p.action_id = :action_id or :action_id::uuid is null)
+  and (p.id = :id or :id::uuid is null)
+  and (coalesce(:action_code::varchar, \'\') = \'\' OR a.code LIKE :action_code::varchar)
+order by p.action_id, p."order"', null, 'SQL_DQL', 'Parameters', null, 'Parameters for the action "{action_title}"({action_code})', null);
+INSERT INTO public.tmp_action (id, code, connection_id, query, content, execution_type, title, post_process, description, redirect) VALUES ('abdaa370-2c7b-dc78-65e1-5724bf54101a', 'system_extended_properties_for_propery_groups', 'd48b9a97-e13c-4961-9eff-d76f39abdffb', e'select
+    case when pc.code = \'dictionaries\' then \'Dictionaries\'
+         when pc.code = \'context\' then \'Environments\'
+         else \'Property groups\'
+    end "description",
+
+    case when pc.code = \'dictionaries\' then \'Dictionary\'
+         when pc.code = \'context\' then \'Environment\'
+         else \'Group\'
+        end column_name
+from property_category pc
+where (pc.code = :category_code or :category_code::varchar is null)
+and (pc.id = :category_id or :category_id::uuid is null)
+limit 1', null, 'SQL_DQL', 'Extended propertis for the action "system-property-groups"', null, null, null);

@@ -20,4 +20,6 @@ public interface ActionLinkRepository extends JpaRepository<ActionLink, UUID> {
         order by al.parentAction.id, al.isActionTarget, al.order
     """)
     List<ActionLink> findLinks(@Param("parentActionId") UUID parentActionId);
+
+    List<ActionLink> findByParentActionIdAndActionLinkGroupGroup(UUID parentActionId, String group);
 }

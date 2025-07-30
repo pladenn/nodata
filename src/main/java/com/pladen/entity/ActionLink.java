@@ -6,6 +6,8 @@ import lombok.Data;
 import lombok.ToString;
 import lombok.experimental.FieldDefaults;
 
+import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -25,6 +27,11 @@ public class ActionLink {
     @JoinColumn(name = "child_action_id", nullable = false)
     @ToString.Exclude
     Action childAction;
+
+    @OneToMany(fetch = FetchType.LAZY)
+    @JoinColumn(name = "link_id", nullable = false)
+    @ToString.Exclude
+    Set<ActionLinkGroup> actionLinkGroup;
 
     String title;
     boolean isActionTarget;
