@@ -1,5 +1,8 @@
 package com.pladen.adapter.impl.sql;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pladen.adapter.DataProviderInput;
 import com.pladen.dto.Parameter;
 import com.pladen.service.CommonHelper;
@@ -24,7 +27,8 @@ import static java.util.stream.Collectors.toList;
 @Component
 public class SqlDataProvider extends AbstractSqlDataProvider {
     private final Pair<List<String>, List<Map<String, String>>> okResult;
-
+    private final Pair<List<String>, JsonNode> okResult1 ;
+    private final CommonHelper commonHelper;
     private static final String SQL_BLOCK_PARAMETERS_TABLE = """
             DO $$
             BEGIN
@@ -46,12 +50,17 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
             """;
 
     public SqlDataProvider(CommonHelper commonHelper) {
+        this.commonHelper = commonHelper;
+
+        //todo remove
         this.okResult = commonHelper.message("ok!");
+
+        this.okResult1 = commonHelper.textMessage("ok!");
     }
 
     @Transactional
     @Override
-    public Pair<List<String>, List<Map<String, String>>> getData(DataProviderInput input) {
+    public Pair<List<String>, JsonNode> getData(DataProviderInput input) {
         final SqlInput sqlInput = new SqlInput(input);
 
         final NamedParameterJdbcTemplate template = getNamedParameterJdbcTemplate(sqlInput);
@@ -64,15 +73,15 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
                 throw new RuntimeException("Nothing is modified");
             }
 
-            return okResult;
+            return okResult1;
         } else if ("SQL_BLOCK".equals(sqlInput.getMethod())) {
             prepareSqlBlockParameters(sqlInput.getParameters(), template);
             template.getJdbcTemplate().execute(sqlInput.getQuery());
 
-            return okResult;
+            return okResult1;
         } else {
             return template
-                    .query(sqlInput.getQuery(), prepareQueryParams(sqlInput.getParameters()), this::mapResultSet);
+                    .query(sqlInput.getQuery(), prepareQueryParams(sqlInput.getParameters()), this::mapResultSet1);
         }
     }
 
@@ -102,6 +111,7 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
         });
     }
 
+    //todo remove
     @SneakyThrows
     private Pair<List<String>, List<Map<String, String>>> mapResultSet(ResultSet resultSet) {
         final ResultSetMetaData metaData = resultSet.getMetaData();
@@ -133,6 +143,31 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
     }
 
     @SneakyThrows
+    private Pair<List<String>, JsonNode> mapResultSet1(ResultSet resultSet) {
+        final ResultSetMetaData metaData = resultSet.getMetaData();
+
+        final List<String> columns = IntStream.iterate(1, n -> n + 1)
+                .limit(metaData.getColumnCount())
+                .mapToObj(n -> getColumnName(metaData, n))
+                .collect(toList());
+
+        final ArrayNode arrayNode = commonHelper.createArrayNode();
+
+        while (resultSet.next()) {
+            final ObjectNode row = commonHelper.createObjectNode();
+
+            IntStream.iterate(1, n -> n + 1)
+                    .limit(metaData.getColumnCount())
+                    .boxed()
+                    .forEach(index -> put(row, resultSet, index));
+
+            arrayNode.add(row);
+        }
+
+        return Pair.of(columns, arrayNode);
+    }
+
+    @SneakyThrows
     private String getColumnName(ResultSetMetaData metaData, int n) {
         return metaData.getColumnName(n);
     }
@@ -141,6 +176,25 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
     private String getColumnValue(ResultSet resultSet, int columnIndex) {
         if (resultSet.getMetaData().getColumnTypeName(columnIndex).equals("bool")) {
             return Boolean.toString(resultSet.getBoolean(columnIndex));
+        }
+        return resultSet.getString(columnIndex);
+    }
+
+    @SneakyThrows
+    private String put(ObjectNode row,  ResultSet resultSet, int columnIndex) {
+        final String columnName = resultSet.getMetaData().getColumnName(columnIndex);
+
+        if (resultSet.getMetaData().getColumnTypeName(columnIndex).equals("bool")) {
+            row.put(columnName, resultSet.getBoolean(columnIndex));
+        }
+        else if (resultSet.getMetaData().getColumnTypeName(columnIndex).equals("int4")) {
+            row.put(columnName, resultSet.getInt(columnIndex));
+        }
+        else if (resultSet.getMetaData().getColumnTypeName(columnIndex).equals("jsonb")) {
+            row.set(columnName, commonHelper.createJsonNode(resultSet.getString(columnIndex)));
+        }
+        else {
+            row.put(columnName, resultSet.getString(columnIndex));
         }
         return resultSet.getString(columnIndex);
     }

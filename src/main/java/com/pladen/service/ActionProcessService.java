@@ -1,43 +1,41 @@
 package com.pladen.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pladen.adapter.DataProvider;
 import com.pladen.adapter.DataProviderInput;
-import com.pladen.dto.ActionLinkMapping;
-import com.pladen.dto.Column;
-import com.pladen.dto.Parameter;
 import com.pladen.dto.*;
+import com.pladen.entity.Action;
 import com.pladen.entity.ActionLink;
-import com.pladen.entity.Dictionary;
-import com.pladen.entity.*;
 import com.pladen.repository.*;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import lombok.SneakyThrows;
 import lombok.experimental.FieldDefaults;
 import org.apache.commons.collections4.ListUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.context.annotation.RequestScope;
 
 import java.util.*;
-import java.util.stream.Stream;
 
+import static com.pladen.controller.ControllerV1.BASE_PATH;
+import static com.pladen.dto.ExecutionContext.getNullableStringValue;
 import static com.pladen.dto.Tab.DATA;
 import static com.pladen.dto.Tab.PARAMETERS;
 import static java.util.Collections.emptyList;
-import static java.util.Objects.*;
+import static java.util.Objects.isNull;
+import static java.util.Objects.requireNonNullElse;
 import static java.util.function.UnaryOperator.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static lombok.AccessLevel.PRIVATE;
-import static org.apache.commons.lang3.ObjectUtils.defaultIfNull;
-import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
+import static org.apache.commons.lang3.ObjectUtils.*;
+import static org.apache.commons.lang3.StringUtils.isNoneBlank;
 
 @Service
-@RequestScope
 @FieldDefaults(level = PRIVATE)
 @RequiredArgsConstructor
 public class ActionProcessService {
@@ -47,25 +45,22 @@ public class ActionProcessService {
     private final Map<String, DataProvider> dataProviders;
     private final ActionLinkRepository actionLinkRepository;
     private final ActionLinkMappingRepository actionLinkMappingRepository;
-    private final DictionaryRepository dictionaryRepository;
     private final PropertyService propertyService;
     private final CommonHelper commonHelper;
     private final ColumnRepository columnRepository;
-
-    private String currentContext;
-    private Action currentAction;
-    private Map<String, String> requestParameters;
-    private final List<Parameter> parameters = new ArrayList<>();
-    private List<Parameter> actionParameters;
-    private Map<String, String> allParameters;
-    private String[] propertyKeys;
-    private String[] propertyValues;
-    private Map<String, String> properties;
+    private final ObjectMapper objectMapper;
 
     private static final String SYSTEM_SUB_MENU_ACTION_PROPERTY = "system-sub-menu";
     private static final String CUSTOM_SUB_MENU_ACTION_PROPERTY = "custom-sub-menu";
     private static final String DEFAULT_DICTIONARY_NAME_COLUMN = "name";
     private static final String DEFAULT_DICTIONARY_VALUE_COLUMN = "value";
+
+    private static final String DATA_EXECUTION_GROUP = "DATA";
+    private static final String INITIALIZATION_EXECUTION_GROUP = "INITIALIZATION";
+    private static final String PARAMETERS_EXECUTION_GROUP = "PARAMETERS";
+
+    private static final String MOUNTED_TO_ACTION_EXECUTION_GROUP = "MOUNTED_TO_ACTION";
+    private static final String MOUNTED_TO_ROW_EXECUTION_GROUP = "MOUNTED_TO_ROW";
 
     private static final TypeReference<List<MenuItem>> MENU_TYPE = new TypeReference<>() {
     };
@@ -75,28 +70,29 @@ public class ActionProcessService {
                                      @NonNull Map<String, String> requestParameters) {
 
         /*
-         * set apply button
+         *todo  set apply button
          * */
 
-        final Data.DataBuilder dataBuilder = basicSetUp(context, actionCode, requestParameters);
-        setParameters();
-        setExtendedProperties();
-        setDictionaryValues();
-        setParameterTitles();
+        final Action action = getActionByCode(actionCode);
 
-        final Pair<List<String>, List<Map<String, String>>> result = getData(currentAction, parameters);
+        final ExecutionContext executionContext = executeAction(action.getId(), requestParameters, context);
 
-        return dataBuilder
-                .description(populateWithPropertiesAndParameterValues(currentAction.getDescription()))
-                .parameters(getActionParameters())
-                .actionParameters(getActionParameters().stream().collect(toMap(ParameterDto::getName, identity())))
-                .systemParameters(getSystemParameters())
-                .columns(getColumns(result.getLeft()))
-                .data(result.getRight())
-                .actionLinks(getActionLinkMappings())
+        final List<ParameterDto> actionParameters = getActionParameters(executionContext);
+
+        return Data.builder()
+                .menuItems(getMenu(executionContext))
+                .originalUrl(requestParameters.get("_original_url"))
+                .originalTitle(requestParameters.get("_original_title"))
+                .description(executionContext.populatePlaceholders(action.getDescription()))
+                .parameters(actionParameters)
+                .actionParameters(actionParameters.stream().collect(toMap(ParameterDto::getName, identity())))
+                .systemParameters(getSystemParameters(actionCode))
+                .columns(getColumns(executionContext))
+                .data(executionContext.getData().orElse(null))
+                .actionLinks(getActionLinkMappings(executionContext))
                 .tab(DATA)
-                .postProcess(currentAction.getPostProcess())
-                .redirect(populateWithPropertiesAndParameterValues(currentAction.getRedirect()))
+                .postProcess(action.getPostProcess())
+                .redirect(executionContext.populatePlaceholders(action.getRedirect()))
                 .build();
     }
 
@@ -105,73 +101,62 @@ public class ActionProcessService {
                                          @NonNull Map<String, String> requestParameters) {
 
         /*
-         * set apply button
+         *todo set apply button
          * */
 
-        final Data.DataBuilder dataBuilder = basicSetUp(context, actionCode, requestParameters)
+        final Action action = getActionByCode(actionCode);
+
+        final ExecutionContext executionContext = executeAction(action.getId(), requestParameters, context, PARAMETERS_EXECUTION_GROUP);
+
+        final List<ParameterDto> actionParameters = getActionParameters(executionContext);
+
+
+        return Data.builder()
+                .menuItems(getMenu(executionContext))
+                .originalUrl(requestParameters.get("_original_url"))
+                .originalTitle(requestParameters.get("_original_title"))
                 .columns(emptyList())
-                .tab(PARAMETERS);
-
-        setExtendedParameters();
-        setExtendedProperties();
-        setDictionaryValues();
-        setParameterTitles();
-
-        return dataBuilder
-                .description(populateWithPropertiesAndParameterValues(currentAction.getDescription()))
-                .parameters(getActionParameters())
-                .actionParameters(getActionParameters().stream().collect(toMap(ParameterDto::getName, identity())))
-                .systemParameters(getSystemParameters())
-                .actionLinks(getActionLinkMappings())
-                .postProcess(currentAction.getPostProcess())
-//                .redirect(populateWithPropertiesAndParameterValues(currentAction.getRedirect()))
+                .tab(PARAMETERS)
+                .description(executionContext.populatePlaceholders(action.getDescription()))
+                .parameters(actionParameters)
+                .actionParameters(actionParameters.stream().collect(toMap(ParameterDto::getName, identity())))
+                .systemParameters(getSystemParameters(actionCode))
+                .actionLinks(getActionLinkMappings(executionContext))
+                .postProcess(action.getPostProcess())
                 .build();
     }
 
-    @SneakyThrows
-    private Data.DataBuilder basicSetUp(String context, String actionCode, Map<String, String> requestParameters) {
-        this.currentAction = getActionByCode(actionCode);
-        this.requestParameters = requestParameters;
-        this.currentContext = context;
-        setCurrentProperties();
-
-        return Data.builder()
-                .menuItems(getMenu())
-                .originalUrl(requestParameters.get("_original_url"))
-                .originalTitle(requestParameters.get("_original_title"));
-    }
-
-    private List<Column> getColumns(List<String> dataColumns) {
-        final List<Column> columns = columnRepository.findByActionId(currentAction.getId())
+    private List<Column> getColumns(ExecutionContext context) {
+        final List<Column> columns = columnRepository.findByActionId(context.getActionId())
                 .stream()
                 .sorted(Comparator.comparing(com.pladen.entity.Column::getOrder))
-                .map(col -> new Column(col.getPath(), populateWithPropertiesAndParameterValues(col.getName())))
+                .map(col -> new Column(col.getPath(), context.populatePlaceholders(col.getName())))
                 .toList();
 
         if (!columns.isEmpty()) {
             return columns;
         }
 
-        return dataColumns.stream()
+        return context.getColumns()
+                .stream()
                 .map(Column::new)
                 .toList();
     }
 
-    private List<MenuItem> getMenu() {
+    private List<MenuItem> getMenu(ExecutionContext context) {
         return ListUtils.union(
-                getSubmenu(SYSTEM_SUB_MENU_ACTION_PROPERTY),
-                getSubmenu(CUSTOM_SUB_MENU_ACTION_PROPERTY)
+                getSubmenu(SYSTEM_SUB_MENU_ACTION_PROPERTY, context),
+                getSubmenu(CUSTOM_SUB_MENU_ACTION_PROPERTY, context)
         );
     }
 
-    private List<MenuItem> getSubmenu(String property) {
-        return propertyService.getSystemProperty(property)
-                .map(this::getData)
-                .map(Pair::getValue)
+    private List<MenuItem> getSubmenu(String property, ExecutionContext context) {
+        return context.getSystemProperty(property)
+                .map(actionCode -> executeAction(getActionByCode(actionCode).getId(), Map.of(), "system"))
+                .map(ExecutionContext::getDataAsList)
                 .map(List::getFirst)
-                .map(Map::values)
-                .map(Collection::stream)
-                .flatMap(Stream::findAny)
+                .map(v -> v.get("menu"))
+                .map(JsonNode::toString)
                 .map(json -> commonHelper.jsonToObject(json, MENU_TYPE))
                 .orElseGet(List::of);
     }
@@ -180,396 +165,201 @@ public class ActionProcessService {
         return actionRepository.findByCodeOrElseThrow(actionCode);
     }
 
-    private void setCurrentProperties() {
-        final Map<String, String> properties = propertyService.mergeProperties(
-                propertyService.getEnvironmentProperties(currentContext),
-                propertyService.getAdditionalPropertiesForObject(currentAction.getId())
-        );
-
-        this.properties = properties;
-
-        propertyKeys = properties.keySet().toArray(String[]::new);
-        propertyValues = properties.values().toArray(String[]::new);
+    private Action getActionById(UUID actionId) {
+        return actionRepository.findByIdOrElseThrow(actionId);
     }
 
-    private void setExtendedProperties() {
-        final List<ActionLink> extendedProperties = actionLinkRepository.findByParentActionIdAndActionLinkGroupGroup(currentAction.getId(),
-                "extended_properties");
-
-        extendedProperties.stream()
-                .sorted((a,b) -> a.getActionLinkGroup()
-                        .stream()
-                        .filter(g -> "extended_properties".equals(g.getGroup()))
-                        .findAny().map(ActionLinkGroup::getOrder).orElse(0)
-                        - b.getActionLinkGroup()
-                        .stream()
-                        .filter(g -> "extended_properties".equals(g.getGroup()))
-                        .findAny().map(ActionLinkGroup::getOrder).orElse(0)
-                )
-                .forEach(link -> {});
+    private ExecutionContext executeAction(UUID actionId, Map<String, String> requestParameters, String environment) {
+        return executeAction(actionId, requestParameters, environment, DATA_EXECUTION_GROUP);
     }
 
-    private void setExtendedParameters() {
-        setParameters();
+    private ExecutionContext executeAction(UUID actionId, Map<String, String> requestParameters, String environment, String group) {
+
+        final ExecutionContext executionContext = new ExecutionContext(objectMapper)
+                .setEnvironment(environment)
+                .setActionId(actionId)
+                .putRequestParameters(requestParameters);
+
+        setProperties(executionContext);
+        executionContext.putParameters(getParameters(executionContext));
+
+        executeGroup(executionContext, INITIALIZATION_EXECUTION_GROUP);
+
+        return executeGroup(executionContext, requireNonNullElse(group, DATA_EXECUTION_GROUP));
     }
 
-    private void setParameters() {
-        final List<Parameter> params = parameterRepository.findByActionId(currentAction.getId())
-                .stream()
-                .sorted(Comparator.comparing(com.pladen.entity.Parameter::getOrder))
-                .map(param -> new Parameter().setId(param.getId())
-                        .setName(param.getName())
-                        .setValue(
-                                Optional.ofNullable(requestParameters.get(param.getName()))
-                                        .orElseGet(() -> propertyService
-                                                .populateWithProperties(populateWithProperties(param.getDefaultValue()), requestParameters))
-                        )
-                        .setType(param.getType())
-                        .setEditable(param.getEditable())
-                        .setParameter(param)
+    private ExecutionContext executeGroup(ExecutionContext context, String group) {
 
-                )
-                .toList();
-
-        parameters.addAll(params);
-    }
-
-    private List<ParameterDto> getActionParameters() {
-        return parameters.stream()
-                .map(parameter -> ParameterDto.builder()
-                        .id(parameter.getParameter().getId())
-                        .name(parameter.getParameter().getName())
-                        .title(parameter.getTitle())
-                        .type(parameter.getParameter().getType())
-                        .value(parameter.getValue())
-                        .availableValues(parameter.getAvailableValues())
-                        .editable(parameter.getParameter().getEditable())
-                        .editableDictionary(parameter.getParameter().getEditableDictionary())
-                        .build())
-                .toList();
-    }
-
-/*    private List<Parameter> getActionParameters() {
-        return requireNonNullElseGet(actionParameters,
-                () -> {
-                    evaluateAllParameters();
-                    return actionParameters;
-                });
-    }*/
-
-    private Map<String, String> getAllParameters() {
-        return requireNonNullElseGet(allParameters,
-                () -> {
-                    evaluateAllParameters();
-                    return allParameters;
-                });
-    }
-
-    private Map<String, ParameterDto> getSystemParameters() {
-        return Map.of(
-                "action-code",
-                ParameterDto.builder()
-                        .name("action-code")
-                        .value(currentAction.getCode())
-                        .build()
-        );
-    }
-
-    private void evaluateAllParameters() {
-        final Pair<Map<String, String>, List<Parameter>> params = evaluateAllParameters(currentAction.getId(),
-                requestParameters, true);
-
-        allParameters = params.getLeft();
-
-        actionParameters = params.getRight()
-                .stream()
-                .map(param -> Parameter.builder()
-                        .id(param.getId())
-                        .name(param.getName())
-                        .value(param.getValue())
-                        .type(param.getType())
-                        .availableValues(param.getAvailableValues())
-                        .title(populateWithPropertiesAndParameterValues(param.getTitle()))
-                        .editable(param.getEditable())
-                        .build())
-                .toList();
-    }
-
-    private Pair<Map<String, String>, List<Parameter>> evaluateAllParameters(UUID actionId, Map<String, String> parameters, boolean addDictionaryValues) {
-        final HashMap<String, String> params = new HashMap<>(parameters);
-
-        final List<Parameter> actionParams = parameterRepository.findByActionId(actionId)
-                .stream()
-                .sorted(Comparator.comparing(com.pladen.entity.Parameter::getOrder))
-                .map(parameter -> mapToParameterDto(parameter, parameters, addDictionaryValues))
-                .collect(toList());
-
-        actionParams.forEach(p -> params.put(p.getName(), p.getValue()));
-
-        return Pair.of(params, actionParams);
-
-    }
-
-    private Parameter mapToParameterDto(com.pladen.entity.Parameter parameter, Map<String, String> parameters, boolean addDictionaryValues) {
-
-        return Parameter.builder()
-                .id(parameter.getId())
-                .name(parameter.getName())
-                .value(
-                        Optional.ofNullable(parameters.get(parameter.getName()))
-                                .orElseGet(() -> propertyService
-                                        .populateWithProperties(populateWithProperties(parameter.getDefaultValue()), parameters))
-                )
-                .type(parameter.getType())
-                .title(parameter.getTitle())
-                .editable(parameter.getEditable())
-                .build();
-
-/*        return addDictionaryValues
-                ? addDictionaryValues(parameterBuilder, parameter.getId(), parameters).build()
-                : parameterBuilder.build();*/
-    }
-
-    private String populateWithPropertiesAndParameterValues(String source) {
-        return propertyService.populateWithProperties(populateWithProperties(source), getAllParameters());
-    }
-
-    private Parameter.ParameterBuilder addDictionaryValues(Parameter.ParameterBuilder parameterBuilder,
-                                                           UUID parameterId, Map<String, String> parameters) {
-        final Dictionary dictionary = dictionaryRepository.findByParameterId(parameterId)
-                .orElse(null);
-
-        if (dictionary == null) {
-            return parameterBuilder;
+        if (anyNull(context, group)) {
+            return context;
         }
 
-        parameterBuilder.editable(dictionary.getEditable());
+        final List<ActionLink> links = actionLinkRepository.findByParentActionIdAndCategory(context.getActionId(), group);
 
-        final Map<String, String> mapping = dictionary.getDictionaryMappings()
-                .stream()
-                .collect(
-                        HashMap::new,
-                        (m, dictMapping) -> m.put(
-                                dictMapping.getDictionaryParameter().getName(),
-                                evaluateDictionaryParameterValue(dictMapping, parameters)
-                        ),
-                        Map::putAll
-                );
-
-        final String valueColumn = requireNonNullElse(dictionary.getValueColumn(), DEFAULT_DICTIONARY_VALUE_COLUMN);
-        final String nameColumn = requireNonNullElse(dictionary.getNameColumn(), DEFAULT_DICTIONARY_NAME_COLUMN);
-
-        final List<KeyValue> availableValues = getData(dictionary.getAction(), mapping)
-                .getRight()
-                .stream()
-                .filter(row -> row.containsKey(valueColumn))
-                .map(row -> new KeyValue(
-                        row.getOrDefault(nameColumn, row.get(valueColumn)),
-                        row.get(valueColumn)
-                ))
-                .collect(toList());
-
-        return parameterBuilder.availableValues(availableValues);
-    }
-
-    private void setDictionaryValues() {
-
-/*
-
-final ObjectMapper objectMapper = new ObjectMapper();
-objectMapper.readTree("json").at("/0/items/1/items")
-
-
-* */
-
-
-
-
-        parameters.stream()
-                .filter(parameter -> nonNull(parameter.getParameter().getDictionaryLinkId()))
-                .forEach(parameter -> {
-                    final List<KeyValue> keyValues = getData(parameter.getParameter().getDictionaryLinkId(), parameters, properties)
-                            .getRight()
-                            .stream()
-                            .map(row -> {
-
-                                final String key = row.get(requireNonNullElse(parameter.getParameter().getNameColumn(), DEFAULT_DICTIONARY_NAME_COLUMN));
-                                final String value = row.get(requireNonNullElse(parameter.getParameter().getValueColumn(), DEFAULT_DICTIONARY_VALUE_COLUMN));
-
-                                return new KeyValue(
-                                        defaultIfNull(key, value),
-                                        value
-                                );
-                            })
-                            .toList();
-
-                    parameter.setAvailableValues(keyValues);
-                });
-    }
-
-    private void setParameterTitles() {
-        parameters.forEach(parameter -> parameter.setTitle(populateWithPropertiesAndParameterValues(parameter.getParameter().getTitle())));
-    }
-
-    private String evaluateDictionaryParameterValue(DictionaryMapping dictionaryMapping, Map<String, String> parameters) {
-        if (isNull(dictionaryMapping)) {
-            return null;
+        if (links.isEmpty() && DATA_EXECUTION_GROUP.equals(group)) {
+            return context.putData(getData(context));
         }
 
-        return Optional.ofNullable(dictionaryMapping.getActionParameter())
-                .map(com.pladen.entity.Parameter::getName)
-                .map(parameters::get)
-                .orElseGet(
-                        () -> propertyService
-                                .populateWithProperties(populateWithProperties(dictionaryMapping.getDefaultValue()), parameters)
-                );
+        links.forEach(link -> getDataByLink(link, context)
+                .filter(ignore -> isNoneBlank(link.getVariable()))
+                .map(data -> context.putValueByPath(data, link.getVariable())));
+
+        return context;
     }
 
-    private Pair<List<String>, List<Map<String, String>>> getData() {
-        return null;//getData(currentAction, getActionParameters());
-    }
+    private Pair<List<String>, JsonNode> getData(ExecutionContext context) {
+        final Action action = getActionById(context.getActionId());
 
-    private Pair<List<String>, List<Map<String, String>>> getData(String actionCode) {
-        return getData(getActionByCode(actionCode), getAllParameters());
-    }
-
-    private Pair<List<String>, List<Map<String, String>>> getData(Action action, Map<String, String> parameterValues) {
-        return getData(action,
-                evaluateAllParameters(action.getId(), parameterValues, false).getRight());
-    }
-
-    private Pair<List<String>, List<Map<String, String>>> getData(Action action, List<Parameter> parameters) {
-        final DataProviderInput input = getDataSupplierInputBuilder(action.getConnection())
+        final DataProviderInput input = DataProviderInput.builder()
+                .url(context.populatePlaceholders(action.getConnection().getUrl()))
+                .login(context.populatePlaceholders(action.getConnection().getLogin()))
+                .password(context.populatePlaceholders(action.getConnection().getPassword()))
                 .method(action.getExecution_type())
-                .query(populateWithProperties(action.getQuery()))
-                .content(populateWithProperties(action.getContent()))
-                .parameters(parameters)
-                .properties(
-                        propertyService.mergeProperties(properties,
-                                propertyService.getAdditionalPropertiesForObject(action.getId()),
-                                propertyService.getAdditionalPropertiesForObject(action.getConnection().getId()))
-                )
+                .query(context.populatePlaceholders(action.getQuery()))
+                .content(context.populatePlaceholders(action.getContent()))
+                //todo are parameters needed here? they are in the execution context
+                .parameters(context.getParameters())
+                .executionContext(context)
                 .build();
 
         return dataProviders.get(action.getConnection().getType())
                 .getData(input);
     }
 
-    private Pair<List<String>, List<Map<String, String>>> getData(UUID actionLinkId, List<Parameter> parameters,
-                                                                  Map<String, String> properties) {
+    private void setProperties(ExecutionContext context) {
+        context.putSystemProperties(propertyService.getApplicationProperties());
 
-        final List<com.pladen.entity.ActionLinkMapping> actionLinkMappings = actionLinkMappingRepository.findByActionLinkId(actionLinkId);
+        context.putSystemProperties(propertyService.getSystemProperties());
 
-        return actionLinkRepository.findById(actionLinkId)
-                .map(ActionLink::getChildAction)
-                .flatMap(v -> Optional.ofNullable(dataProviders.get(v.getConnection().getType()))
-                        .map(dp -> dp.getData(
-                                DataProviderInput.builder()
-                                        .url(populateWithProperties(v.getConnection().getUrl()))
-                                        .login(populateWithProperties(v.getConnection().getLogin()))
-                                        .password(populateWithProperties(v.getConnection().getPassword()))
-                                        .method(v.getExecution_type())
-                                        .query(propertyService.populateWithProperties(v.getQuery(), properties))
-                                        .content(propertyService.populateWithProperties(v.getContent(), properties))
-                                        .parameters(mapParameters(v, actionLinkMappings, parameters, properties))
-                                        .properties(
-                                                propertyService.mergeProperties(properties,
-                                                        propertyService.getAdditionalPropertiesForObject(v.getConnection().getId()))
-                                        )
-                                        .build()
-                        ))
+        context.putEnvironmentProperties(propertyService.getEnvironmentProperties(context.getEnvironment()));
 
+        context.putProperties(propertyService.getAdditionalPropertiesForObject(context.getActionId()));
 
-                )
-                .orElseGet(() -> Pair.of(List.of(), List.of()));
+        context.putProperties("properties.connection",
+                propertyService.getAdditionalPropertiesForObject(getActionById(context.getActionId())
+                        .getConnection()
+                        .getId()));
     }
 
-    private List<Parameter> mapParameters(Action action, List<com.pladen.entity.ActionLinkMapping> mappings,
-                                          List<Parameter> parameters, Map<String, String> properties) {
-
-        final Map<String, com.pladen.entity.ActionLinkMapping> actionLinkMappingMap = mappings.stream()
-                .collect(toMap(
-                        k -> k.getParameter().getName(),
-                        identity()
-                ));
-
-
-        final Map<String, String> params = parameters.stream()
-                .filter(parameter -> nonNull(parameter.getValue()))
-                .collect(toMap(
-                        Parameter::getName,
-                        Parameter::getValue
-                ));
-
-        return parameterRepository.findByActionId(action.getId())
+    private List<Parameter> getParameters(ExecutionContext context) {
+        return parameterRepository.findByActionId(context.getActionId())
                 .stream()
-                .map(parameter -> new Parameter()
-                        .setId(parameter.getId())
-                        .setName(parameter.getName())
-                        .setType(parameter.getType())
-                        .setTitle(parameter.getTitle())
-                        .setValue(
-                                //todo populate with props, variables, params
-                                Optional.of(parameter.getName())
-                                        .map(actionLinkMappingMap::get)
-                                        .map(link -> {
-                                            String val = null;
-
-                                            if (nonNull(link.getMapping())) {
-                                                val = params.get(link.getMapping());
-                                            } else {
-                                                val = link.getDefaultValue();
-                                            }
-
-                                            return val;
-                                        })
-                                        .or(() -> Optional.ofNullable(parameter.getDefaultValue()))
-                                        .map(v -> propertyService.populateWithProperties(v, properties))
-                                        .orElse(null)
+                .sorted(Comparator.comparing(com.pladen.entity.Parameter::getOrder))
+                .map(param -> new Parameter().setId(param.getId())
+                        .setName(param.getName())
+                        .setValue(context.getRequestParameter(param.getName())
+                                .orElseGet(() -> context.populatePlaceholders(param.getDefaultValue()))
                         )
-                        .setParameter(parameter)
+                        .setTitle(param.getTitle())
+                        .setType(param.getType())
+                        .setEditable(param.getEditable())
+                        .setOrder(param.getOrder())
+                        .setEditableDictionary(param.getEditableDictionary())
+                        .setDictionaryLinkId(param.getDictionaryLinkId())
+                        .setDictionaryNameColumn(param.getNameColumn())
+                        .setDictionaryValueColumn(param.getValueColumn())
                 )
                 .toList();
     }
 
-    private String populateWithProperties(String source) {
-        return propertyService.populateWithProperties(source, properties);
+    private List<ParameterDto> getActionParameters(ExecutionContext context) {
+        return context.getParameters()
+                .stream()
+                .map(parameter -> ParameterDto.builder()
+                        .id(parameter.getId())
+                        .name(parameter.getName())
+                        .title(context.populatePlaceholders(parameter.getTitle()))
+                        .type(parameter.getType())
+                        .value(parameter.getValue())
+                        .availableValues(getDictionaryValues(parameter, context))
+                        .editable(parameter.getEditable())
+                        .editableDictionary(parameter.getEditableDictionary())
+                        .build())
+                .toList();
     }
 
-    private DataProviderInput.DataProviderInputBuilder getDataSupplierInputBuilder(Connection connection) {
-        return DataProviderInput.builder()
-                .url(populateWithProperties(connection.getUrl()))
-                .login(populateWithProperties(connection.getLogin()))
-                .password(populateWithProperties(connection.getPassword()));
+    private Map<String, ParameterDto> getSystemParameters(String actionCode) {
+        return Map.of(
+                "action-code",
+                ParameterDto.builder()
+                        .name("action-code")
+                        .value(actionCode)
+                        .build()
+        );
     }
 
-    private List<com.pladen.dto.ActionLink> getActionLinkMappings() {
-        final String baseUrl = "/content/" + currentContext + "/";
+    private List<KeyValue> getDictionaryValues(Parameter parameter, ExecutionContext context) {
+        if (isNull(parameter) || isNull(parameter.getDictionaryLinkId())) {
+            return null;
+        }
 
-        return actionLinkRepository.findLinks(currentAction.getId())
+        return Optional.of(parameter)
+                .map(Parameter::getDictionaryLinkId)
+                .flatMap(actionLinkRepository::findById)
+                .flatMap(link -> getDataByLink(link, context))
+                .map(ExecutionContext::nodeToList)
+                .orElseGet(List::of)
+                .stream()
+                .filter(JsonNode::isObject)
+                .map(ObjectNode.class::cast)
+                .map(obj -> new KeyValue(
+                    getNullableStringValue(obj, requireNonNullElse(parameter.getDictionaryNameColumn(), DEFAULT_DICTIONARY_NAME_COLUMN)) ,
+                    getNullableStringValue(obj, requireNonNullElse(parameter.getDictionaryValueColumn(), DEFAULT_DICTIONARY_VALUE_COLUMN))
+                ))
+                .toList();
+    }
+
+    private Optional<JsonNode> getDataByLink(ActionLink link, ExecutionContext executionContext) {
+
+        final Map<String, String> requestParameters = actionLinkMappingRepository.findByActionLinkId(link.getId())
+                .stream()
+                .filter(mapping -> anyNotNull(mapping.getMapping(), mapping.getDefaultValue(), mapping.getParameter().getDefaultValue()))
+                .collect(
+                        toMap(
+                                k -> k.getParameter().getName(),
+                                mapping -> Optional.ofNullable(mapping.getMapping())
+                                        .flatMap(executionContext::getStringValue)
+                                        .or(() -> Optional.ofNullable(
+                                                executionContext.populatePlaceholders(mapping.getDefaultValue())))
+                                        .or(() -> Optional.ofNullable(
+                                                executionContext.populatePlaceholders(mapping.getParameter()
+                                                        .getDefaultValue())))
+                                        .orElse(null)
+                        )
+                );
+
+        return executeAction(link.getChildAction().getId(), requestParameters, executionContext.getEnvironment(),
+                link.getChildAction().getId().equals(executionContext.getActionId()) ? null : DATA_EXECUTION_GROUP).getData();
+    }
+
+    private List<com.pladen.dto.ActionLink> getActionLinkMappings(ExecutionContext context) {
+        final String baseUrl = BASE_PATH + "/" + context.getEnvironment() + "/";
+
+        return actionLinkRepository.findByParentActionIdAndCategoryIn(context.getActionId(),
+                        List.of(MOUNTED_TO_ACTION_EXECUTION_GROUP, MOUNTED_TO_ROW_EXECUTION_GROUP))
                 .stream()
                 .map(val ->
                         com.pladen.dto.ActionLink.builder()
                                 .path(baseUrl + val.getChildAction().getCode()
                                         + (val.isViaParameters() ? "/parameters" : ""))
                                 .title(
-                                        populateWithPropertiesAndParameterValues(
+                                        context.populatePlaceholders(
                                                 firstNonNull(val.getTitle(), val.getChildAction().getDescription(), val.getChildAction().getTitle()))
                                 )
-                                .mapping(getParameterMappings(val))
-                                .isActionTarget(val.isActionTarget())
+                                .mapping(getParameterMappings(val, context))
+                                .isActionTarget(MOUNTED_TO_ACTION_EXECUTION_GROUP.equals(val.getCategory()))
                                 .build()
                 )
                 .collect(toList());
     }
 
-    private List<ActionLinkMapping> getParameterMappings(ActionLink actionLink) {
+    private List<ActionLinkMapping> getParameterMappings(ActionLink actionLink, ExecutionContext context) {
         return actionLinkMappingRepository.findByActionLinkId(actionLink.getId())
                 .stream()
                 .map(linkMapping -> ActionLinkMapping.builder()
                         .parameterName(linkMapping.getParameter().getName())
                         .path(linkMapping.getMapping())
-                        .defaultValue(populateWithPropertiesAndParameterValues(linkMapping.getDefaultValue()))
+                        .defaultValue(context.populatePlaceholders(linkMapping.getDefaultValue()))
                         .build())
                 .toList();
     }

@@ -1,5 +1,6 @@
 package com.pladen.dto;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Value;
@@ -17,7 +18,11 @@ public class Data {
     Map<String, ParameterDto> actionParameters;
     Map<String, ParameterDto> systemParameters;
     List<Column> columns;
-    List<Map<String, String>> data;
+
+    //todo remove
+    List<Map<String, String>> data1;
+
+    JsonNode data;
     List<ActionLink> actionLinks;
     Tab tab;
     String postProcess;

@@ -1,5 +1,6 @@
 package com.pladen.adapter;
 
+import com.pladen.dto.ExecutionContext;
 import com.pladen.dto.Parameter;
 import lombok.Builder;
 import lombok.Value;
@@ -18,4 +19,5 @@ public class DataProviderInput {
     String content;
     List<Parameter> parameters;
     Map<String, String> properties;
+    ExecutionContext executionContext;
 }

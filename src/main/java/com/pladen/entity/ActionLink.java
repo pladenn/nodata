@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.ToString;
 import lombok.experimental.FieldDefaults;
 
-import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -33,9 +32,9 @@ public class ActionLink {
     @ToString.Exclude
     Set<ActionLinkGroup> actionLinkGroup;
 
+    String category;
+    String variable;
     String title;
-    boolean isActionTarget;
-    boolean mountedToRow;
     boolean viaParameters;
     Integer order;
 }

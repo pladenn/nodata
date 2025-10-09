@@ -1,15 +1,18 @@
 package com.pladen.dto;
 
-import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.NoArgsConstructor;
 import lombok.Value;
-import lombok.extern.jackson.Jacksonized;
+
+import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 
 @Builder
-@AllArgsConstructor
 @Value
-public class KeyValue {
+public final class KeyValue {
     String key;
     String value;
+
+    public KeyValue(String key, String value) {
+        this.key = defaultIfBlank(key, value);
+        this.value = value;
+    }
 }

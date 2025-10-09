@@ -26,6 +26,11 @@ public enum DataType {
             .filter(v -> !"null".equalsIgnoreCase(v))
             .map(Integer::parseInt)
             .orElse(null)),
+    LONG(val -> Optional.ofNullable(val)
+            .filter(StringUtils::isNoneBlank)
+            .filter(v -> !"null".equalsIgnoreCase(v))
+            .map(Long::parseLong)
+            .orElse(null)),
     ;
 
     DataType(Function<String, Object> fromString) {

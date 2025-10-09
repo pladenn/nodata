@@ -1,11 +1,12 @@
 package com.pladen.dto;
 
 import com.pladen.entity.DataType;
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 import lombok.experimental.Accessors;
 
-import java.util.List;
 import java.util.UUID;
 
 @Data
@@ -14,14 +15,15 @@ import java.util.UUID;
 @NoArgsConstructor
 @Accessors(chain = true)
 public class Parameter {
-    //todo remove unused fields
     UUID id;
     String name;
     String value;
     DataType type;
-    List<KeyValue> availableValues;
     String title;
     Boolean editable;
+    Integer order;
     Boolean editableDictionary;
-    com.pladen.entity.Parameter parameter;
+    UUID dictionaryLinkId;
+    String dictionaryNameColumn;
+    String dictionaryValueColumn;
 }

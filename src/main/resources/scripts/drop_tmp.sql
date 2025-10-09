@@ -8,3 +8,4 @@ drop table tmp_parameter;
 drop table tmp_property;
 drop table tmp_property_category;
 drop table tmp_del_sys_obj;
+drop table tmp_sys_obj;

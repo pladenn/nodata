@@ -1,5 +1,6 @@
 package com.pladen.adapter.impl.http;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.pladen.adapter.DataProvider;
 import com.pladen.adapter.DataProviderInput;
 import com.pladen.dto.Parameter;
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.pladen.service.PropertyService.populateWithProperties;
 import static java.util.Objects.*;
 import static java.util.stream.Collectors.toMap;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
@@ -26,6 +28,7 @@ public class HttpDataProvider implements DataProvider {
     private static final String CODE = "code";
     private static final String BODY = "body";
 
+    //todo remove
     private final PropertyService propertyService;
     private final CommonHelper commonHelper;
 
@@ -41,7 +44,7 @@ public class HttpDataProvider implements DataProvider {
 
     @Override
     @Transactional
-    public Pair<List<String>, List<Map<String, String>>> getData(DataProviderInput input) {
+    public Pair<List<String>, JsonNode> getData(DataProviderInput input) {
         final HttpInput httpInput = new HttpInput(input);
 
         final RestClient.RequestBodySpec request = RestClient.create(URI.create(httpInput.getUrl()).toString())
@@ -56,10 +59,7 @@ public class HttpDataProvider implements DataProvider {
         final String responseBody = request.retrieve()
                 .body(String.class);
 
-        return Pair.of(
-         List.of("body"),
-         List.of(Map.of("body", requireNonNull(responseBody, EMPTY)))
-        );
+        return  Pair.of(List.of("body"), commonHelper.createJsonNode(responseBody));
     }
 
     private URI buildUri(UriBuilder uriBuilder, HttpInput httpInput) {
@@ -84,9 +84,11 @@ public class HttpDataProvider implements DataProvider {
                         Parameter::getValue
                 ));
 
-        return propertyService.populateWithProperties(httpInput.getContent(), parameters);
+        //todo get from execution context
+        return populateWithProperties(httpInput.getContent(), parameters);
     }
 
+    //todo remove
     private Pair<List<String>, List<Map<String, String>>> transformResponse(String body) {
         return transformResponse(null, body);
     }

@@ -1,15 +1,15 @@
 package com.pladen.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.pladen.dto.MenuItem;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.experimental.FieldDefaults;
 import org.apache.commons.lang3.tuple.Pair;
-import org.springframework.boot.configurationprocessor.json.JSONObject;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -32,18 +32,32 @@ public class CommonHelper {
 
     @SneakyThrows
     public <T> T jsonToObject(String json, TypeReference<T> typeReference) {
-        //((ObjectNode)objectMapper.readTree("")).set("", objectMapper.createObjectNode())
         return objectMapper.readValue(json, typeReference);
+    }
+
+    public ObjectNode createObjectNode() {
+        return objectMapper.createObjectNode();
+    }
+
+    public ArrayNode createArrayNode() {
+        return objectMapper.createArrayNode();
+    }
+
+    @SneakyThrows
+    public JsonNode createJsonNode(String content) {
+        return objectMapper.readTree(content);
     }
 
     public Pair<List<String>, List<Map<String, String>>> message(@NonNull String message) {
         return oneRowData(Map.of(MESSAGE, message));
     }
 
+    public Pair<List<String>, JsonNode> textMessage(@NonNull String message) {
+        return Pair.of(List.of(MESSAGE), createObjectNode().put(MESSAGE, message));
+    }
+
     public Pair<List<String>, List<Map<String, String>>> oneRowData(@NonNull Map<String, String> data) {
         return Pair.of(new ArrayList<>(data.keySet()), List.of(data));
     }
-
-
 
 }

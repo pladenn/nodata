@@ -679,18 +679,7 @@
 
             for (let column of columns) {
                 let td = document.createElement("td");
-                if (column.path.includes(".")) {
-                    let path = column.path;
-                    let field = path.substring(0, path.indexOf("."));
-                    let subPath = path.substring(path.indexOf("."));
-
-                    let fieldObject = JSON.parse(line[field]);
-
-                    td.innerHTML = eval("fieldObject" + subPath);
-                }
-                else {
-                    td.innerHTML = fromNullValue(line[column.path]);
-                }
+                td.innerHTML = eval("line" + "." + column.path);
                 tr.appendChild(td);
             }
 

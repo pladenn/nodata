@@ -27,3 +27,4 @@ select * from tmp_sys_obj
 where id not in (select id from sys_obj);
 
 drop table tmp_sys_obj;
+create table tmp_sys_obj as select * from sys_obj;

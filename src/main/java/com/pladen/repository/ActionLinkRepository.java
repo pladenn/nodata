@@ -11,15 +11,15 @@ import java.util.UUID;
 
 @Repository
 public interface ActionLinkRepository extends JpaRepository<ActionLink, UUID> {
-    List<ActionLink> findByParentActionIdOrderByParentActionAscIsActionTargetAscOrderAsc(UUID parentActionId);
 
     @Query("""
         select al from ActionLink al
-        where al.parentAction.id = :parentActionId or al.parentAction.id is null
-        and (al.isActionTarget or al.mountedToRow)
-        order by al.parentAction.id, al.isActionTarget, al.order
+        where (al.parentAction.id = :parentActionId or al.parentAction.id is null)
+        and (al.category in :categories)
+        order by al.parentAction.id, al.category, al.order
     """)
-    List<ActionLink> findLinks(@Param("parentActionId") UUID parentActionId);
+    List<ActionLink> findByParentActionIdAndCategoryIn(@Param("parentActionId")  UUID parentActionId,
+                                                       @Param("categories") List<String> categories);
+    List<ActionLink> findByParentActionIdAndCategory(UUID parentActionId, String category);
 
-    List<ActionLink> findByParentActionIdAndActionLinkGroupGroup(UUID parentActionId, String group);
 }
