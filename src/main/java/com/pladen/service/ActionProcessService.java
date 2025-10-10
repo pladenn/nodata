@@ -108,8 +108,9 @@ public class ActionProcessService {
 
         final ExecutionContext executionContext = executeAction(action.getId(), requestParameters, context, PARAMETERS_EXECUTION_GROUP);
 
-        final List<ParameterDto> actionParameters = getActionParameters(executionContext);
+        setExtendedParameterValues(executionContext);
 
+        final List<ParameterDto> actionParameters = getActionParameters(executionContext);
 
         return Data.builder()
                 .menuItems(getMenu(executionContext))
@@ -124,6 +125,18 @@ public class ActionProcessService {
                 .actionLinks(getActionLinkMappings(executionContext))
                 .postProcess(action.getPostProcess())
                 .build();
+    }
+
+    private void setExtendedParameterValues(ExecutionContext context) {
+        context.getValue(PARAMETERS_EXECUTION_GROUP)
+                .map(ExecutionContext::nodeToList)
+                .orElseGet(List::of)
+                .forEach(node -> context.getParameters()
+                        .stream()
+                        .filter(parameter -> isNull(parameter.getValue()))
+                        .forEach(parameter -> ExecutionContext.getStringValue(node, parameter.getName())
+                                .ifPresent(parameter::setValue)
+                        ));
     }
 
     private List<Column> getColumns(ExecutionContext context) {

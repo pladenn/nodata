@@ -165,6 +165,15 @@ public class ExecutionContext {
     }
 
     public static Optional<String> getStringValue(JsonNode node, String... parts) {
+        return getValue(node, parts)
+                .map(val -> val.isTextual() ? val.asText() : val.toString());
+    }
+
+    public Optional<JsonNode> getValue(String... parts) {
+        return getValue(variables, parts);
+    }
+
+    private static Optional<JsonNode> getValue(JsonNode node, String... parts) {
         if (isNull(node)) {
             return Optional.empty();
         }
@@ -172,8 +181,8 @@ public class ExecutionContext {
         return Optional.ofNullable(buildPath(parts))
                 .filter(StringUtils::isNoneBlank)
                 .map(node::at)
-                .filter(not(JsonNode::isMissingNode))
-                .map(val -> val.isTextual() ? val.asText() : val.toString());
+                .filter(not(JsonNode::isNull))
+                .filter(not(JsonNode::isMissingNode));
     }
 
     private static String buildPath(String... parts) {
