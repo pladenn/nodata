@@ -18,10 +18,6 @@ public class Data {
     Map<String, ParameterDto> actionParameters;
     Map<String, ParameterDto> systemParameters;
     List<Column> columns;
-
-    //todo remove
-    List<Map<String, String>> data1;
-
     JsonNode data;
     List<ActionLink> actionLinks;
     Tab tab;

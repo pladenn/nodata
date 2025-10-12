@@ -5,7 +5,6 @@ import com.pladen.adapter.DataProvider;
 import com.pladen.adapter.DataProviderInput;
 import com.pladen.dto.Parameter;
 import com.pladen.service.CommonHelper;
-import com.pladen.service.PropertyService;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
@@ -28,12 +27,9 @@ public class HttpDataProvider implements DataProvider {
     private static final String CODE = "code";
     private static final String BODY = "body";
 
-    //todo remove
-    private final PropertyService propertyService;
     private final CommonHelper commonHelper;
 
-    public HttpDataProvider(PropertyService propertyService, CommonHelper commonHelper) {
-        this.propertyService = propertyService;
+    public HttpDataProvider(CommonHelper commonHelper) {
         this.commonHelper = commonHelper;
     }
 
