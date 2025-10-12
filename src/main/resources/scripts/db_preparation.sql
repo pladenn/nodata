@@ -1,6 +1,5 @@
 create table tmp_action as select * from action;
 create table tmp_action_link as select * from action_link;
-create table tmp_action_link_group as select * from action_link_group;
 create table tmp_action_link_mapping as select * from action_link_mapping;
 create table tmp_column as select * from "column";
 create table tmp_connection as select * from connection;
@@ -14,7 +13,6 @@ drop table if exists sys_obj;
 create table sys_obj as
 select id, 'action' tbl from action
 union all select id, 'action_link' tbl from action_link
-union all select id, 'action_link_group' tbl from action_link_group
 union all select id, 'action_link_mapping' tbl from action_link_mapping
 union all select id, 'column' tbl from "column"
 union all select id, 'connection' tbl from connection

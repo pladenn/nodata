@@ -3,7 +3,6 @@ drop table if exists databasechangelog;
 drop table if exists property;
 drop table if exists property_category;
 drop table if exists public.column;
-drop table if exists action_link_group;
 drop table if exists action_link_mapping;
 drop table if exists parameter;
 drop table if exists action_link;

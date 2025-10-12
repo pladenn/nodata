@@ -1,6 +1,5 @@
 drop table tmp_action;
 drop table tmp_action_link;
-drop table tmp_action_link_group;
 drop table tmp_action_link_mapping;
 drop table tmp_column;
 drop table tmp_connection;
