@@ -14,5 +14,6 @@
    <include file="upd-5/changelog.xml" relativeToChangelogFile="true"/>
    <include file="upd-6/changelog.xml" relativeToChangelogFile="true"/>
    <include file="upd-7/changelog.xml" relativeToChangelogFile="true"/>
+   <include file="upd-8/changelog.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
