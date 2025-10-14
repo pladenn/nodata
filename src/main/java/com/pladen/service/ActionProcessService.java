@@ -26,8 +26,7 @@ import static com.pladen.dto.ExecutionContext.getNullableStringValue;
 import static com.pladen.dto.Tab.DATA;
 import static com.pladen.dto.Tab.PARAMETERS;
 import static java.util.Collections.emptyList;
-import static java.util.Objects.isNull;
-import static java.util.Objects.requireNonNullElse;
+import static java.util.Objects.*;
 import static java.util.function.UnaryOperator.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
@@ -327,19 +326,19 @@ public class ActionProcessService {
         final Map<String, String> requestParameters = actionLinkMappingRepository.findByActionLinkId(link.getId())
                 .stream()
                 .filter(mapping -> anyNotNull(mapping.getMapping(), mapping.getDefaultValue(), mapping.getParameter().getDefaultValue()))
-                .collect(
-                        toMap(
-                                k -> k.getParameter().getName(),
-                                mapping -> Optional.ofNullable(mapping.getMapping())
-                                        .flatMap(executionContext::getStringValue)
-                                        .or(() -> Optional.ofNullable(
-                                                executionContext.populatePlaceholders(mapping.getDefaultValue())))
-                                        .or(() -> Optional.ofNullable(
-                                                executionContext.populatePlaceholders(mapping.getParameter()
-                                                        .getDefaultValue())))
-                                        .orElse(null)
-                        )
-                );
+                .map(mapping -> new KeyValue(
+                        mapping.getParameter().getName(),
+                        Optional.ofNullable(mapping.getMapping())
+                                .flatMap(executionContext::getStringValue)
+                                .or(() -> Optional.ofNullable(
+                                        executionContext.populatePlaceholders(mapping.getDefaultValue())))
+                                .or(() -> Optional.ofNullable(
+                                        executionContext.populatePlaceholders(mapping.getParameter()
+                                                .getDefaultValue())))
+                                .orElse(null)
+                        ))
+                .filter(pair -> nonNull(pair.getValue()))
+                .collect(toMap(KeyValue::getKey, KeyValue::getValue));
 
         return executeAction(link.getChildAction().getId(), requestParameters, executionContext.getEnvironment(),
                 link.getChildAction().getId().equals(executionContext.getActionId()) ? null : DATA_EXECUTION_GROUP).getData();
