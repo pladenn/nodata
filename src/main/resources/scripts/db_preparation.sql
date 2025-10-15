@@ -10,6 +10,11 @@ create table tmp_sys_obj as select * from sys_obj;
 
 drop table if exists sys_obj;
 
+-- remove custom submenu --
+delete from tmp_property_category where id = '6d0f1247-e398-03b4-aa5e-269ade84af52';
+delete from tmp_action where id = 'e587b6a0-ef4c-2f7b-4a69-5c8fc19f22f2';
+---------------------------
+
 create table sys_obj as
 select id, 'action' tbl from action
 union all select id, 'action_link' tbl from action_link
