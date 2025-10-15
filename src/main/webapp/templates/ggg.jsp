@@ -8,11 +8,11 @@
     <style>
 
         :root {
-            --wd: 180px;
+            --wd: 270px;
             --mr: 10px;
             --amr: 4px;
             --apl: 6px;
-            --lf: 190px;
+            --lf: 280px;
         }
 
         .darrow {
