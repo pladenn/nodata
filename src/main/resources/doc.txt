@@ -1,7 +1,5 @@
-
 exceptions
 metadata tab
 virtual threads
-action: delete dictionary/environment/group
 complex action (jmespath)
 add null value into dictionary

@@ -17,5 +17,6 @@
    <include file="upd-8/changelog.xml" relativeToChangelogFile="true"/>
    <include file="update-2025101401/changelog.xml" relativeToChangelogFile="true"/>
    <include file="update-2025101402/changelog.xml" relativeToChangelogFile="true"/>
+   <include file="update-2025102301/changelog.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>

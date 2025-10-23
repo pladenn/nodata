@@ -65,9 +65,11 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
 
         final NamedParameterJdbcTemplate template = getNamedParameterJdbcTemplate(sqlInput);
 
+        final String query = input.getExecutionContext().populatePlaceholders(sqlInput.getQuery());
+
         if ("SQL_DML".equals(sqlInput.getMethod())) {
             final int modified = template
-                    .update(sqlInput.getQuery(), prepareQueryParams(sqlInput.getParameters()));
+                    .update(query, prepareQueryParams(sqlInput.getParameters()));
 
             if (modified < 1) {
                 throw new RuntimeException("Nothing is modified");
@@ -76,12 +78,12 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
             return okResult1;
         } else if ("SQL_BLOCK".equals(sqlInput.getMethod())) {
             prepareSqlBlockParameters(sqlInput.getParameters(), template);
-            template.getJdbcTemplate().execute(sqlInput.getQuery());
+            template.getJdbcTemplate().execute(query);
 
             return okResult1;
         } else {
             return template
-                    .query(sqlInput.getQuery(), prepareQueryParams(sqlInput.getParameters()), this::mapResultSet1);
+                    .query(query, prepareQueryParams(sqlInput.getParameters()), this::mapResultSet1);
         }
     }
 

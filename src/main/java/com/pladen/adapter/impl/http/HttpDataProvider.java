@@ -43,7 +43,8 @@ public class HttpDataProvider implements DataProvider {
     public Pair<List<String>, JsonNode> getData(DataProviderInput input) {
         final HttpInput httpInput = new HttpInput(input);
 
-        final RestClient.RequestBodySpec request = RestClient.create(URI.create(httpInput.getUrl()).toString())
+        final String url = input.getExecutionContext().populatePlaceholders(httpInput.getUrl());
+        final RestClient.RequestBodySpec request = RestClient.create(URI.create(url).toString())
                 .method(HttpMethod.valueOf(httpInput.getMethod()))
                 .uri(uriBuilder -> buildUri(uriBuilder, httpInput))
                 .headers(httpHeaders -> httpHeaders.addAll(httpInput.getHeaders()));

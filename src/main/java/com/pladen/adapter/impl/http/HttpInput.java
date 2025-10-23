@@ -1,15 +1,20 @@
 package com.pladen.adapter.impl.http;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pladen.adapter.DataProviderInput;
 import com.pladen.dto.Parameter;
 import lombok.AllArgsConstructor;
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpHeaders;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static java.util.Objects.requireNonNullElse;
+import static java.util.Spliterator.ORDERED;
+import static java.util.Spliterators.spliteratorUnknownSize;
 import static org.apache.commons.lang3.StringUtils.*;
 
 @AllArgsConstructor
@@ -49,30 +54,21 @@ public class HttpInput {
     }
 
     public HttpHeaders getHeaders() {
-        return input.getProperties()
-                .entrySet()
-                .stream()
-                .filter(pair -> isHeader(pair.getKey()))
+
+        return input.getExecutionContext()
+                .getValue("properties.connection.header")
+                .filter(JsonNode::isObject)
+                .map(ObjectNode.class::cast)
+                .map(node -> spliteratorUnknownSize(node.fields(), ORDERED))
+                .map(nodes -> StreamSupport.stream(nodes, false))
+                .orElseGet(Stream::of)
+                .filter(pair -> pair.getValue().isTextual())
+                .filter(pair -> isNotBlank(pair.getValue().textValue()))
                 .collect(
                         HttpHeaders::new,
-                        (headers, pair) -> headers.add(extractHeaderName(pair.getKey()), pair.getValue()),
+                        (headers, pair) -> headers.add(pair.getKey(), pair.getValue().textValue()),
                         HttpHeaders::addAll
                 );
     }
 
-    private String extractHeaderName(String propertyName) {
-        String headerName = remove(propertyName,"{");
-        headerName = remove(headerName,"}");
-        headerName = removeStart(headerName,"connection.header.");
-        return removeStart(headerName,"action.header.");
-    }
-
-    private boolean isHeader(String propertyName) {
-        if (StringUtils.isBlank(propertyName)) {
-            return false;
-        }
-
-        return propertyName.startsWith("{connection.header") ||
-                propertyName.startsWith("{action.header");
-    }
 }

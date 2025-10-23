@@ -12,6 +12,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.Map;
 
@@ -53,6 +54,16 @@ public class ControllerV1 {
         final Data mainData = actionProcessService.processParametersRequest(context, code, requestParams);
         model.addAttribute("mainData", commonHelper.objectToJson(mainData));
         return VIEW_NAME;
+    }
+
+    @SneakyThrows
+    @Transactional
+    @GetMapping(BASE_PATH + "/{context}/{code}/data")
+    public @ResponseBody Data actionData(@PathVariable("context") String context,
+                                         @PathVariable("code") String code,
+                                         @RequestParam Map<String, String> requestParams) {
+
+        return actionProcessService.processActionRequest(context, code, requestParams);
     }
 
 }

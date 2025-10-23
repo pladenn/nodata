@@ -14,6 +14,7 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.apache.commons.collections4.ListUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -31,7 +32,8 @@ import static java.util.function.UnaryOperator.identity;
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 import static lombok.AccessLevel.PRIVATE;
-import static org.apache.commons.lang3.ObjectUtils.*;
+import static org.apache.commons.lang3.ObjectUtils.anyNotNull;
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 import static org.apache.commons.lang3.StringUtils.isNoneBlank;
 
 @Service
@@ -197,13 +199,17 @@ public class ActionProcessService {
 
         executeGroup(executionContext, INITIALIZATION_EXECUTION_GROUP);
 
-        return executeGroup(executionContext, requireNonNullElse(group, DATA_EXECUTION_GROUP));
+        return executeGroup(executionContext, group);
     }
 
     private ExecutionContext executeGroup(ExecutionContext context, String group) {
 
-        if (anyNull(context, group)) {
+        if (isNull(context)) {
             return context;
+        }
+
+        if (isNull(group)) {
+            return context.putData(getData(context));
         }
 
         final List<ActionLink> links = actionLinkRepository.findByParentActionIdAndCategory(context.getActionId(), group);
@@ -212,9 +218,32 @@ public class ActionProcessService {
             return context.putData(getData(context));
         }
 
-        links.forEach(link -> getDataByLink(link, context)
-                .filter(ignore -> isNoneBlank(link.getVariable()))
-                .map(data -> context.putValueByPath(data, link.getVariable())));
+        links.forEach(link ->
+                Optional.of(getDataByLink(link, context))
+                        .filter(ignore -> isNoneBlank(link.getVariable()))
+                        .ifPresent(exCon -> {
+                            if (DATA_EXECUTION_GROUP.equals(link.getVariable())) {
+                                context.putData(Pair.of(
+                                                exCon.getColumns(),
+                                                Optional.ofNullable(link.getMapping())
+                                                        .filter(StringUtils::isNotBlank)
+                                                        .flatMap(ignore -> exCon.getData())
+                                                        .flatMap(node -> ExecutionContext.getValue(node, link.getMapping()))
+                                                        .or(exCon::getData)
+                                                        .orElse(null)
+
+                                        ));
+                            }
+                            else {
+                                Optional.ofNullable(link.getMapping())
+                                        .filter(StringUtils::isNotBlank)
+                                        .flatMap(ignore -> exCon.getData())
+                                        .flatMap(node -> ExecutionContext.getValue(node, link.getMapping()))
+                                        .or(exCon::getData)
+                                        .ifPresent(node-> context.putValueByPath(node, link.getVariable()));
+                            }
+                        })
+                );
 
         return context;
     }
@@ -308,7 +337,7 @@ public class ActionProcessService {
         return Optional.of(parameter)
                 .map(Parameter::getDictionaryLinkId)
                 .flatMap(actionLinkRepository::findById)
-                .flatMap(link -> getDataByLink(link, context))
+                .flatMap(link -> getDataByLink(link, context).getData())
                 .map(ExecutionContext::nodeToList)
                 .orElseGet(List::of)
                 .stream()
@@ -321,7 +350,7 @@ public class ActionProcessService {
                 .toList();
     }
 
-    private Optional<JsonNode> getDataByLink(ActionLink link, ExecutionContext executionContext) {
+    private ExecutionContext getDataByLink(ActionLink link, ExecutionContext executionContext) {
 
         final Map<String, String> requestParameters = actionLinkMappingRepository.findByActionLinkId(link.getId())
                 .stream()
@@ -341,7 +370,7 @@ public class ActionProcessService {
                 .collect(toMap(KeyValue::getKey, KeyValue::getValue));
 
         return executeAction(link.getChildAction().getId(), requestParameters, executionContext.getEnvironment(),
-                link.getChildAction().getId().equals(executionContext.getActionId()) ? null : DATA_EXECUTION_GROUP).getData();
+                link.getChildAction().getId().equals(executionContext.getActionId()) ? null : DATA_EXECUTION_GROUP);
     }
 
     private List<com.pladen.dto.ActionLink> getActionLinkMappings(ExecutionContext context) {

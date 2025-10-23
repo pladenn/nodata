@@ -17,7 +17,9 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static com.pladen.service.PropertyService.populateWithProperties;
+import static java.util.Collections.unmodifiableList;
 import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
 import static java.util.function.Predicate.not;
 import static org.apache.commons.lang3.StringUtils.*;
 
@@ -48,7 +50,7 @@ public class ExecutionContext {
     }
 
     public Optional<JsonNode> getData() {
-        return Optional.ofNullable(variables.get("data"));
+        return Optional.ofNullable(variables.get("DATA"));
     }
 
     public List<JsonNode> getDataAsList() {
@@ -56,7 +58,7 @@ public class ExecutionContext {
     }
 
     public List<String> getColumns() {
-        return Collections.unmodifiableList(columns);
+        return nonNull(columns) ? unmodifiableList(columns) : List.of("body");
     }
 
     public static List<JsonNode> nodeToList(JsonNode data) {
@@ -173,7 +175,7 @@ public class ExecutionContext {
         return getValue(variables, parts);
     }
 
-    private static Optional<JsonNode> getValue(JsonNode node, String... parts) {
+    public static Optional<JsonNode> getValue(JsonNode node, String... parts) {
         if (isNull(node)) {
             return Optional.empty();
         }
@@ -221,7 +223,7 @@ public class ExecutionContext {
         }
 
         columns = data.getLeft();
-        return putValueByPath(data.getRight(), "data");
+        return putValueByPath(data.getRight(), "DATA");
     }
 
     private ObjectNode getParentNode(String path) {

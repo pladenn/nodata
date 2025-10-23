@@ -18,3 +18,4 @@ nodata:
     data-base-url: "${spring.datasource.url}"
     data-base-username: "${spring.datasource.username}"
     data-base-password: "${spring.datasource.password}"
+    localhost-port: "${server.port}"

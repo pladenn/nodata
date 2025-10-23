@@ -814,6 +814,10 @@
 
     var mainData = ${mainData};
 
+    if (mainData.postProcess != null) {
+            eval(mainData.postProcess);
+    }
+
     if (isNotBlank(mainData.redirect)){
         window.location.replace(mainData.redirect);
     }
@@ -826,9 +830,6 @@
     let _data = mainData.data;
 
     setCopyButtons(mainData.columns, mainData.data, mainData.postProcess);
-    if (mainData.postProcess != null) {
-        eval(mainData.postProcess);
-    }
 
     let actionTarget = [];
     let rowTarget = [];

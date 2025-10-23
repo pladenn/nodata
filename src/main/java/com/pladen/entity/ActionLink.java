@@ -31,4 +31,5 @@ public class ActionLink {
     String title;
     boolean viaParameters;
     Integer order;
+    String mapping;
 }
