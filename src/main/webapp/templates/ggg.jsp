@@ -521,7 +521,6 @@
     }
 
     function setParameters(parameters) {
-        //<input type="text" placeholder="Your name.." value="yyyy">
         var paramDiv = document.getElementById("parameters");
         var button = document.getElementById("apply");
         for (let parameter of parameters) {

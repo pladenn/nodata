@@ -2,11 +2,13 @@ package com.pladen.entity;
 
 import jakarta.validation.constraints.NotNull;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 
+import java.time.LocalDate;
 import java.util.Optional;
 import java.util.function.Function;
 
@@ -17,32 +19,37 @@ public enum DataType {
         .filter(StringUtils::isNoneBlank)
         .filter(v -> !"null".equalsIgnoreCase(v))
         .map(java.util.UUID::fromString)
-        .orElse(null)),
-    STRING(v -> v),
-    TEXT(t -> t),
-    BOOLEAN(BooleanUtils::toBoolean),
+        .orElse(null), "uuid"),
+    STRING(v -> v, "text"),
+    TEXT(t -> t, "text"),
+    BOOLEAN(BooleanUtils::toBoolean, "boolean"),
     INTEGER(val -> Optional.ofNullable(val)
             .filter(StringUtils::isNoneBlank)
             .filter(v -> !"null".equalsIgnoreCase(v))
             .map(Integer::parseInt)
-            .orElse(null)),
+            .orElse(null), "integer"),
     LONG(val -> Optional.ofNullable(val)
             .filter(StringUtils::isNoneBlank)
             .filter(v -> !"null".equalsIgnoreCase(v))
             .map(Long::parseLong)
-            .orElse(null)),
+            .orElse(null), "bigint"),
+    DATE(val -> Optional.ofNullable(val)
+            .filter(StringUtils::isNoneBlank)
+            .filter(v -> !"null".equalsIgnoreCase(v))
+            .map(LocalDate::parse)
+            .orElse(null), "date"),
     ;
 
-    DataType(Function<String, Object> fromString) {
-
-        this(fromString, Object::toString);
+    DataType(Function<String, Object> fromString, String sqlDataType) {
+        this(fromString, Object::toString, sqlDataType);
     }
 
     Function<String, Object> fromString;
     Function<Object, String> toString;
+    @Getter
+    String sqlDataType;
 
     public Object fromString(@NotNull String value) {
-
         return fromString.apply(value);
     }
 

@@ -15,13 +15,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.IntStream;
 
 import static com.pladen.entity.DataType.*;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toList;
 
 @Component
@@ -35,19 +33,35 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
                 CREATE TEMPORARY TABLE if not exists sql_block_parameters(
                            name varchar(50),
                            type varchar(50),
-                           string_value text,
-                           uuid_value uuid,
-                           boolean_value bool,
-                           integer_value integer
+                           %s
                       );
             
                 truncate sql_block_parameters;
             END $$
-            """;
+            """.formatted(
+            Arrays.stream(values())
+                    .filter(type -> TEXT != type)
+                    .map(type -> type.name().toLowerCase() + "_value " + type.getSqlDataType())
+                    .collect(joining(", "))
+    );
 
     private static final String INSERT_SQL_BLOCK_PARAMETER = """
-            insert into sql_block_parameters values(:name, :type, :string_value, :uuid_value, :boolean_value)
-            """;
+            insert into sql_block_parameters(name, type, %s) values(:name, :type, %s)
+            """.formatted(
+            Arrays.stream(values())
+                    .filter(type -> TEXT != type)
+                    .map(Enum::name)
+                    .map(String::toLowerCase)
+                    .map(type -> type + "_value")
+                    .collect(joining(", ")),
+
+            Arrays.stream(values())
+                    .filter(type -> TEXT != type)
+                    .map(Enum::name)
+                    .map(String::toLowerCase)
+                    .map(type -> ":" + type + "_value")
+                    .collect(joining(", "))
+    );
 
     public SqlDataProvider(CommonHelper commonHelper) {
         this.commonHelper = commonHelper;
@@ -96,17 +110,13 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
             queryParams.addValue("name", parameter.getName());
             queryParams.addValue("type", parameter.getType().name());
 
-            queryParams.addValue("string_value",
-                    (parameter.getType() == STRING || parameter.getType() == TEXT) ? parameter.getValue() : null);
-
-            queryParams.addValue("uuid_value",
-                    parameter.getType() == UUID ? parameter.getType().fromString(parameter.getValue()) : null);
-
-            queryParams.addValue("boolean_value",
-                    parameter.getType() == BOOLEAN ? parameter.getType().fromString(parameter.getValue()) : null);
-
-            queryParams.addValue("integer_value",
-                    parameter.getType() == INTEGER ? parameter.getType().fromString(parameter.getValue()) : null);
+            Arrays.stream(values())
+                    .filter(type -> TEXT != type)
+                    .forEach(
+                            type -> queryParams.addValue(
+                                    type.name().toLowerCase() + "_value",
+                                    (parameter.getType() == TEXT ? STRING : parameter.getType())  == type ? type.fromString(parameter.getValue()) : null)
+                    );
 
             template.update(INSERT_SQL_BLOCK_PARAMETER, queryParams);
 
