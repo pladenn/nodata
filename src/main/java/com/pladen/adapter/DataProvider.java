@@ -8,5 +8,9 @@ import java.util.List;
 public interface DataProvider {
     String getHandleType();
 
-    Pair<List<String>, JsonNode> getData(DataProviderInput input);
+    default Pair<List<String>, JsonNode> getData(DataProviderInput input) {
+        return getData(input, true);
+    }
+
+    Pair<List<String>, JsonNode> getData(DataProviderInput input, boolean loggingEnabled);
 }

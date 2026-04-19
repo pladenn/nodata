@@ -1,26 +1,27 @@
 package com.pladen.adapter.impl.http;
 
+import static com.pladen.service.PropertyService.populateWithProperties;
+import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
+import static java.util.Objects.requireNonNullElse;
+import static java.util.stream.Collectors.toMap;
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.pladen.adapter.DataProvider;
 import com.pladen.adapter.DataProviderInput;
 import com.pladen.dto.Parameter;
 import com.pladen.service.CommonHelper;
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriBuilder;
-
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-
-import static com.pladen.service.PropertyService.populateWithProperties;
-import static java.util.Objects.*;
-import static java.util.stream.Collectors.toMap;
-import static org.apache.commons.lang3.StringUtils.EMPTY;
 
 @Component
 public class HttpDataProvider implements DataProvider {
@@ -40,7 +41,7 @@ public class HttpDataProvider implements DataProvider {
 
     @Override
     @Transactional
-    public Pair<List<String>, JsonNode> getData(DataProviderInput input) {
+    public Pair<List<String>, JsonNode> getData(DataProviderInput input, boolean loggingEnabled) {
         final HttpInput httpInput = new HttpInput(input);
 
         final String url = input.getExecutionContext().populatePlaceholders(httpInput.getUrl());

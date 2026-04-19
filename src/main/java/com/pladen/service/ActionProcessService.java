@@ -1,15 +1,47 @@
 package com.pladen.service;
 
+import static com.pladen.controller.ControllerV1.BASE_PATH;
+import static com.pladen.dto.ExecutionContext.getNullableStringValue;
+import static com.pladen.dto.Tab.DATA;
+import static com.pladen.dto.Tab.PARAMETERS;
+import static java.util.Collections.emptyList;
+import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
+import static java.util.Objects.requireNonNullElse;
+import static java.util.function.UnaryOperator.identity;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Collectors.toMap;
+import static lombok.AccessLevel.PRIVATE;
+import static org.apache.commons.lang3.ObjectUtils.anyNotNull;
+import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
+import static org.apache.commons.lang3.StringUtils.isNoneBlank;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pladen.adapter.DataProvider;
 import com.pladen.adapter.DataProviderInput;
-import com.pladen.dto.*;
+import com.pladen.dto.ActionLinkMapping;
+import com.pladen.dto.Column;
+import com.pladen.dto.Data;
+import com.pladen.dto.ExecutionContext;
+import com.pladen.dto.KeyValue;
+import com.pladen.dto.MenuItem;
+import com.pladen.dto.Parameter;
+import com.pladen.dto.ParameterDto;
 import com.pladen.entity.Action;
 import com.pladen.entity.ActionLink;
-import com.pladen.repository.*;
+import com.pladen.repository.ActionLinkMappingRepository;
+import com.pladen.repository.ActionLinkRepository;
+import com.pladen.repository.ActionRepository;
+import com.pladen.repository.ColumnRepository;
+import com.pladen.repository.ParameterRepository;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -19,22 +51,6 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
-
-import static com.pladen.controller.ControllerV1.BASE_PATH;
-import static com.pladen.dto.ExecutionContext.getNullableStringValue;
-import static com.pladen.dto.Tab.DATA;
-import static com.pladen.dto.Tab.PARAMETERS;
-import static java.util.Collections.emptyList;
-import static java.util.Objects.*;
-import static java.util.function.UnaryOperator.identity;
-import static java.util.stream.Collectors.toList;
-import static java.util.stream.Collectors.toMap;
-import static lombok.AccessLevel.PRIVATE;
-import static org.apache.commons.lang3.ObjectUtils.anyNotNull;
-import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
-import static org.apache.commons.lang3.StringUtils.isNoneBlank;
 
 @Service
 @FieldDefaults(level = PRIVATE)
@@ -153,6 +169,7 @@ public class ActionProcessService {
 
         return context.getColumns()
                 .stream()
+                .filter(name -> !"__objekt".equalsIgnoreCase(name))
                 .map(Column::new)
                 .toList();
     }
@@ -264,7 +281,9 @@ public class ActionProcessService {
                 .build();
 
         return dataProviders.get(action.getConnection().getType())
-                .getData(input);
+                .getData(input,
+                    !(CUSTOM_SUB_MENU_ACTION_PROPERTY.equals(action.getCode()) || SYSTEM_SUB_MENU_ACTION_PROPERTY.equals(action.getCode()))
+                );
     }
 
     private void setProperties(ExecutionContext context) {

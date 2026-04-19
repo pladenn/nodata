@@ -751,6 +751,9 @@
                         val = eval(path.replace('#', 'fullData'));
                     }
                     else if(path != null && row != null) {
+                      val = eval("row." + path);
+                    }
+                    else if(path != null && row != null) {
                         val = eval("row['" + path + "']");
                     }
 

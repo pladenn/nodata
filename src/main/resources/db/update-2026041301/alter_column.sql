@@ -1,0 +1,2 @@
+ALTER TABLE action
+ALTER COLUMN execution_type TYPE VARCHAR(40);

@@ -1,27 +1,34 @@
 package com.pladen.adapter.impl.sql;
 
+import static com.pladen.entity.DataType.STRING;
+import static com.pladen.entity.DataType.TEXT;
+import static com.pladen.entity.DataType.values;
+import static java.util.stream.Collectors.joining;
+import static java.util.stream.Collectors.toList;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pladen.adapter.DataProviderInput;
 import com.pladen.dto.Parameter;
 import com.pladen.service.CommonHelper;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.IntStream;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.ResultSet;
-import java.sql.ResultSetMetaData;
-import java.util.*;
-import java.util.stream.IntStream;
-
-import static com.pladen.entity.DataType.*;
-import static java.util.stream.Collectors.joining;
-import static java.util.stream.Collectors.toList;
-
+@Slf4j
 @Component
 public class SqlDataProvider extends AbstractSqlDataProvider {
     private final Pair<List<String>, List<Map<String, String>>> okResult;
@@ -74,12 +81,16 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
 
     @Transactional
     @Override
-    public Pair<List<String>, JsonNode> getData(DataProviderInput input) {
+    public Pair<List<String>, JsonNode> getData(DataProviderInput input, boolean loggingEnabled) {
         final SqlInput sqlInput = new SqlInput(input);
 
         final NamedParameterJdbcTemplate template = getNamedParameterJdbcTemplate(sqlInput);
 
         final String query = input.getExecutionContext().populatePlaceholders(sqlInput.getQuery());
+
+        if (loggingEnabled) {
+            logQueryWithParameters(query, sqlInput.getParameters());
+        }
 
         if ("SQL_DML".equals(sqlInput.getMethod())) {
             final int modified = template
@@ -95,10 +106,40 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
             template.getJdbcTemplate().execute(query);
 
             return okResult1;
+        } else if ("SQL_BLOCK_WITH_RESULT".equals(sqlInput.getMethod())) {
+
+            prepareSqlBlockParameters(sqlInput.getParameters(), template);
+
+            return template.getJdbcTemplate().execute((Connection con) -> {
+                con.setAutoCommit(false);
+
+                try (PreparedStatement ps = con.prepareStatement(query)) {
+                    ps.execute();
+                }
+
+                try (PreparedStatement psFetch = con.prepareStatement("FETCH ALL IN \"_cursor_result\"")) {
+                    try (ResultSet rs = psFetch.executeQuery()) {
+                        return mapResultSet(rs);
+                    }
+                }
+            });
         } else {
             return template
-                    .query(query, prepareQueryParams(sqlInput.getParameters()), this::mapResultSet1);
+                .query(query, prepareQueryParams(sqlInput.getParameters()), this::mapResultSet);
         }
+    }
+
+    private void logQueryWithParameters(String query, List<Parameter> parameters) {
+        String queryForLogging = "\n\n\n>>> SQL QUERY:\n\n" + query + "\n\n";
+
+        for (Parameter parameter : parameters) {
+            queryForLogging = queryForLogging.replaceAll(":" + parameter.getName() + "\\b",
+                parameter.getType() == TEXT || parameter.getType() == STRING
+                    ? parameter.getValue() == null ? "null" : "'" + parameter.getValue() + "'"
+                    : parameter.getValue() == null ? "null" : parameter.getValue());
+        }
+
+        log.info(queryForLogging);
     }
 
     private void prepareSqlBlockParameters(List<Parameter> parameters, NamedParameterJdbcTemplate template) {
@@ -123,39 +164,8 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
         });
     }
 
-    //todo remove
     @SneakyThrows
-    private Pair<List<String>, List<Map<String, String>>> mapResultSet(ResultSet resultSet) {
-        final ResultSetMetaData metaData = resultSet.getMetaData();
-
-        final List<String> columns = IntStream.iterate(1, n -> n + 1)
-                .limit(metaData.getColumnCount())
-                .mapToObj(n -> getColumnName(metaData, n))
-                .collect(toList());
-
-        final List<Map<String, String>> data = new LinkedList<>();
-
-        while (resultSet.next()) {
-            data.add(
-                    IntStream.iterate(1, n -> n + 1)
-                            .limit(metaData.getColumnCount())
-                            .boxed()
-                            .collect(
-                                    HashMap::new,
-                                    (m, index) -> m.put(
-                                            getColumnName(metaData, index),
-                                            getColumnValue(resultSet, index)
-                                            ),
-                                    Map::putAll)
-            );
-
-        }
-
-        return Pair.of(columns, data);
-    }
-
-    @SneakyThrows
-    private Pair<List<String>, JsonNode> mapResultSet1(ResultSet resultSet) {
+    private Pair<List<String>, JsonNode> mapResultSet(ResultSet resultSet) {
         final ResultSetMetaData metaData = resultSet.getMetaData();
 
         final List<String> columns = IntStream.iterate(1, n -> n + 1)
