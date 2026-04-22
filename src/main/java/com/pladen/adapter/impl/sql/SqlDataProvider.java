@@ -19,6 +19,7 @@ import java.sql.ResultSetMetaData;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.stream.IntStream;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
@@ -135,7 +136,7 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
         for (Parameter parameter : parameters) {
             queryForLogging = queryForLogging.replaceAll(":" + parameter.getName() + "\\b",
                 parameter.getType() == TEXT || parameter.getType() == STRING
-                    ? parameter.getValue() == null ? "null" : "'" + parameter.getValue() + "'"
+                    ? parameter.getValue() == null ? "null" : Matcher.quoteReplacement("'" + parameter.getValue() + "'")
                     : parameter.getValue() == null ? "null" : parameter.getValue());
         }
 

@@ -100,7 +100,7 @@ public class ActionProcessService {
                 .menuItems(getMenu(executionContext))
                 .originalUrl(requestParameters.get("_original_url"))
                 .originalTitle(requestParameters.get("_original_title"))
-                .description(executionContext.populatePlaceholders(action.getDescription()))
+                .description(executionContext.populatePlaceholders(requireNonNullElse(action.getDescription(), action.getTitle())))
                 .parameters(actionParameters)
                 .actionParameters(actionParameters.stream().collect(toMap(ParameterDto::getName, identity())))
                 .systemParameters(getSystemParameters(actionCode))

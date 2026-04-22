@@ -678,7 +678,7 @@
 
             for (let column of columns) {
                 let td = document.createElement("td");
-                td.innerHTML = eval("line" + "." + column.path);
+                td.innerHTML = eval("line" + formatObjectPath(column.path));
                 tr.appendChild(td);
             }
 
@@ -720,6 +720,25 @@
 
     }
 
+    function formatObjectPath(path) {
+      if (!path) return '[""]';
+
+      // 1. Split by dots, but ONLY dots that are not inside quotes
+      // This regex looks for dots that have an even number of quotes following them
+      const parts = path.match(/"[^"]*"|[^.]+/g);
+
+      if (!parts) return '[""]';
+
+      return parts
+      .map(part => {
+        // Remove existing quotes if they are there, so we don't get [""ddddd""]
+        const cleanKey = part.replace(/^"|"$/g, '');
+
+        return '["' + cleanKey + '"]';
+      })
+      .join('.');
+    }
+
     function createLinks(links, row, fullData) {
         let created = false
 
@@ -752,9 +771,9 @@
                     }
                     else if(path != null && row != null) {
                       val = eval("row." + path);
-                    }
-                    else if(path != null && row != null) {
-                        val = eval("row['" + path + "']");
+                      val =(val !== null && typeof val === 'object')
+                        ? JSON.stringify(val)
+                        : val;
                     }
 
                     if (val != null) {
