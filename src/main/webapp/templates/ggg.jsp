@@ -307,6 +307,7 @@
     </style>
 </head>
 
+<body>
 <div>
     <a id="_original_url">Back</a>
 </div>
@@ -789,27 +790,47 @@
         }
     }
 
+    const ORIGINAL_URL_ID = '_original_url';
+
     function addOriginalUrl(searchParams, url, title) {
         if (url == null) {
             return;
         }
 
         let val = new URL(url);
-        val.searchParams.delete('_original_url');
+        val.searchParams.delete(ORIGINAL_URL_ID);
         val.searchParams.delete('_original_title');
 
-        searchParams.set('_original_url', val);
+        searchParams.set(ORIGINAL_URL_ID, val);
         searchParams.set('_original_title', title);
     }
 
-    function setOriginalUrl(originalUrl, originalTitle) {
-        let back = document.getElementById('_original_url');
+    function getOriginalUrl() {
+        let el = document.getElementById(ORIGINAL_URL_ID);
+        if (el == null) {
+            el = document.createElement('a');
+            el.id = ORIGINAL_URL_ID;
+            let div = document.createElement('div');
+            div.appendChild(el);
+            document.body.prepend(div);
+        }
+        return el;
+    }
 
+    function removeOriginalUrl() {
+        let el = document.getElementById(ORIGINAL_URL_ID);
+        if (el != null) {
+            el.parentElement.remove();
+        }
+    }
+
+    function setOriginalUrl(originalUrl, originalTitle) {
         if (originalUrl == null) {
-            back.remove();
-            return;
+          removeOriginalUrl();
+          return;
         }
 
+        let back = getOriginalUrl();
         back.setAttribute("href", originalUrl);
 
         if (originalTitle == null) {
@@ -831,6 +852,10 @@
 
     function isNotBlank(val) {
         return !(val == null || val.trim() == '');
+    }
+
+    function clearPage() {
+      removeOriginalUrl();
     }
 
     var mainData = ${mainData};
