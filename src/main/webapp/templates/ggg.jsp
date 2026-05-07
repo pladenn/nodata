@@ -340,7 +340,21 @@
 </div>
 
 <script>
-    let navmenu = document.getElementById("navmenu");
+    function getNavmenu() {
+        return document.getElementById("navmenu");
+    }
+
+    function clearMenu() {
+        getNavmenu().innerHTML = "";
+    }
+
+    function getParametersDiv() {
+        return document.getElementById("parameters");
+    }
+
+    function getApplyButton() {
+        return document.getElementById("apply");
+    }
 
     function createMenuItemLink(item) {
         let link = document.createElement("a");
@@ -408,7 +422,7 @@
         }
 
         for (let item of menu) {
-            navmenu.append(createMenuItem(item, 1));
+            getNavmenu().append(createMenuItem(item, 1));
         }
     }
 
@@ -522,8 +536,8 @@
     }
 
     function setParameters(parameters) {
-        var paramDiv = document.getElementById("parameters");
-        var button = document.getElementById("apply");
+        var paramDiv = getParametersDiv();
+        var button = getApplyButton();
         for (let parameter of parameters) {
             label = document.createElement("Label");
             label.setAttribute("for", parameter.id);
@@ -583,6 +597,15 @@
             }
         }
         button.onclick = getApplyButtonAction(parameters);
+    }
+
+    function clearParameters() {
+        var paramDiv = getParametersDiv();
+        var button = getApplyButton();
+        while (paramDiv.firstChild !== button) {
+            paramDiv.removeChild(paramDiv.firstChild);
+        }
+        button.onclick = null;
     }
 
     function setCopyButtons(columns, data, script) {
@@ -841,13 +864,26 @@
         }
     }
 
-    function setActionTitle() {
-        document.getElementById('action_title').innerText = mainData.description;
+    function setActionTitle(title) {
+        document.getElementById('action_title').innerText = title;
+    }
+
+    function clearTitle() {
+        document.getElementById('action_title').innerText = "";
     }
 
     function setActionTargetButton(actionTarget, fullData) {
         let button = document.getElementById('action_shared_actions');
         button.onmouseover = createLinks(actionTarget, null, fullData);
+    }
+
+    function clearActionTargetButton() {
+        let button = document.getElementById('action_shared_actions');
+        button.onmouseover = null;
+    }
+
+    function clearData() {
+        document.getElementById("data_table").innerHTML = "";
     }
 
     function isNotBlank(val) {
@@ -856,47 +892,56 @@
 
     function clearPage() {
       removeOriginalUrl();
+      clearMenu();
+      clearTitle();
+      clearParameters();
+      clearActionTargetButton();
+      clearData();
+    }
+
+    function setUpPage() {
+
+      if (mainData.postProcess != null) {
+        eval(mainData.postProcess);
+      }
+
+      if (isNotBlank(mainData.redirect)) {
+        window.location.replace(mainData.redirect);
+      }
+      setOriginalUrl(mainData.originalUrl, mainData.originalTitle);
+      createMainMenu(mainData.menuItems);
+      setActionTitle(mainData.description);
+      setParameters(mainData.parameters);
+
+      let _columns = mainData.columns;
+      let _data = mainData.data;
+
+      setCopyButtons(mainData.columns, mainData.data, mainData.postProcess);
+
+      let actionTarget = [];
+      let rowTarget = [];
+      for (var lnk of mainData.actionLinks) {
+        if (lnk.actionTarget) {
+          actionTarget.push(lnk);
+        } else {
+          rowTarget.push(lnk);
+        }
+      }
+
+      setActionTargetButton(actionTarget, mainData);
+
+      setColumns(_columns, rowTarget);
+      if (!Array.isArray(_data)) {
+        _data = [_data];
+      }
+
+      setData(_columns, rowTarget, _data);
+      openTab(event, mainData.tab.toLowerCase());
     }
 
     var mainData = ${mainData};
 
-    if (mainData.postProcess != null) {
-            eval(mainData.postProcess);
-    }
-
-    if (isNotBlank(mainData.redirect)){
-        window.location.replace(mainData.redirect);
-    }
-    setOriginalUrl(mainData.originalUrl, mainData.originalTitle);
-    createMainMenu(mainData.menuItems);
-    setActionTitle();
-    setParameters(mainData.parameters);
-
-    let _columns = mainData.columns;
-    let _data = mainData.data;
-
-    setCopyButtons(mainData.columns, mainData.data, mainData.postProcess);
-
-    let actionTarget = [];
-    let rowTarget = [];
-    for (var lnk of mainData.actionLinks) {
-        if (lnk.actionTarget) {
-            actionTarget.push(lnk);
-        } else {
-            rowTarget.push(lnk);
-        }
-    }
-
-    setActionTargetButton(actionTarget, mainData);
-
-    setColumns(_columns, rowTarget);
-    if (!Array.isArray(_data)) {
-        _data = [_data];
-    }
-
-    setData(_columns, rowTarget, _data);
-    openTab(event, mainData.tab.toLowerCase());
-
+    setUpPage();
 </script>
 
 </body>
