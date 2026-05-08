@@ -22,5 +22,7 @@
    <include file="update-2026041301/changelog.xml" relativeToChangelogFile="true"/>
    <include file="update-2026042501/changelog.xml" relativeToChangelogFile="true"/>
    <include file="update-2026050801/changelog.xml" relativeToChangelogFile="true"/>
+   <include file="update-2026050802/changelog.xml" relativeToChangelogFile="true"/>
+   <include file="update-2026050803/changelog.xml" relativeToChangelogFile="true"/>
 
 </databaseChangeLog>
