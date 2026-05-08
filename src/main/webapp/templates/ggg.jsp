@@ -486,6 +486,9 @@
         body[parameter.name] = field.type === "checkbox" ? field.checked : field.value;
       }
 
+      body[ORIGINAL_URL_ID] = mainData.originalUrl ?? '';
+      body['_original_title'] = mainData.originalTitle;
+
       let url = new URL(window.location.origin);
       url.pathname = window.location.pathname;
       url = toActionURL(url);

@@ -142,6 +142,7 @@ public class ActionProcessService {
                 .systemParameters(getSystemParameters(actionCode))
                 .actionLinks(getActionLinkMappings(executionContext))
                 .postProcess(action.getPostProcess())
+                .applyButtonPost(action.isPostRequest())
                 .build();
     }
 
