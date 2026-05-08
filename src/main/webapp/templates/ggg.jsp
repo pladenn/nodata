@@ -448,7 +448,7 @@
 
     }
 
-    function applyButtonAction(parameters) {
+    function applyButtonGetRequest(parameters) {
         let redirectUrl = new URL(window.location.origin);
         redirectUrl.pathname = window.location.pathname;
         redirectUrl = toActionURL(redirectUrl);
@@ -469,23 +469,41 @@
     }
 
     function getApplyButtonAction(parameters) {
+        if (mainData.applyButtonPost === true) {
+            return function () {
+                applyButtonPostRequest(parameters);
+            };
+        }
         return function () {
-            applyButtonAction(parameters);
+            applyButtonGetRequest(parameters);
         }
     }
 
+    function applyButtonPostRequest(parameters) {
+        let body = {};
+      for (let parameter of parameters) {
+        let field = document.getElementById(parameter.id);
+        body[parameter.name] = field.type === "checkbox" ? field.checked : field.value;
+      }
+
+      let url = new URL(window.location.origin);
+      url.pathname = window.location.pathname;
+      url = toActionURL(url);
+
+      fetch(url.href, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      })
+      .then(function (response) { return response.json(); })
+      .then(function (data) {
+        mainData = data;
+        clearPage();
+        setUpPage();
+      });
+    }
+
     function createEditableSelect(parameter) {
-        /*
-<div class="select-editable">
-  <select onchange="this.nextElementSibling.value=this.value">
-    <option value=""></option>
-    <option value="115x175 mm">115x175 mm</option>
-    <option value="120x160 mm">120x160 mm</option>
-    <option value="120x287 mm">120x287 mm</option>
-  </select>
-  <input type="text" name="format" value=""/>
-</div>
-        * */
 
         let div = document.createElement("div");
         div.className += "select-editable";
@@ -596,7 +614,7 @@
                 paramDiv.insertBefore(input, button);
             }
         }
-        button.onclick = getApplyButtonAction(parameters);
+        button.onclick = getApplyButtonAction(parameters, mainData.applyButtonPost);
     }
 
     function clearParameters() {

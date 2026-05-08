@@ -33,4 +33,5 @@ public class Action {
     String postProcess;
     String description;
     String redirect;
+    boolean postRequest;
 }

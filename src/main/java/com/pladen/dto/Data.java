@@ -25,4 +25,5 @@ public class Data {
     String originalUrl;
     String originalTitle;
     String redirect;
+    boolean applyButtonPost;
 }

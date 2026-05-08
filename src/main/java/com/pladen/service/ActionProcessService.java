@@ -110,6 +110,7 @@ public class ActionProcessService {
                 .tab(DATA)
                 .postProcess(action.getPostProcess())
                 .redirect(executionContext.populatePlaceholders(action.getRedirect()))
+                .applyButtonPost(action.isPostRequest())
                 .build();
     }
 
