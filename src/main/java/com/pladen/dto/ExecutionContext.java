@@ -1,32 +1,46 @@
 package com.pladen.dto;
 
+import static com.pladen.service.PropertyService.populateWithProperties;
+import static java.util.Collections.unmodifiableList;
+import static java.util.Objects.isNull;
+import static java.util.Objects.nonNull;
+import static java.util.function.Predicate.not;
+import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.replace;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Spliterators;
+import java.util.UUID;
+import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.experimental.Accessors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
 
-import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
-import static com.pladen.service.PropertyService.populateWithProperties;
-import static java.util.Collections.unmodifiableList;
-import static java.util.Objects.isNull;
-import static java.util.Objects.nonNull;
-import static java.util.function.Predicate.not;
-import static org.apache.commons.lang3.StringUtils.*;
-
 @Accessors(chain = true)
 public class ExecutionContext {
+
+    public static final String LOG_LINE_SEPARATOR =
+        "\n-----------------------------------------------------------------------------------------------------------------\n";
     final ObjectMapper objectMapper;
     final ObjectNode variables;
+    final StringBuilder log = new StringBuilder();
     List<String> columns;
 
     final Map<String, Parameter> parameters = new HashMap<>();
@@ -38,6 +52,10 @@ public class ExecutionContext {
     @Getter
     @Setter
     UUID actionId;
+
+    @Getter
+    @Setter
+    String actionCode;
 
     private static final String REQUEST_PARAMETERS = "request-parameters";
     private static final String PARAMETERS = "parameters";
@@ -279,5 +297,36 @@ public class ExecutionContext {
         }
 
         return result;
+    }
+
+    public ExecutionContext mergeLogsToExecutionContext(ExecutionContext other) {
+        if (other == null) {
+            return this;
+        }
+
+        other.log(getLog());
+        return this;
+    }
+
+    public Consumer<String> getLogger() {
+        return this::log;
+    }
+
+    public void logLineSeparator() {
+        log.append(LOG_LINE_SEPARATOR);
+    }
+
+    public void logLineWithSeparators(String line) {
+        logLineSeparator();
+        log(line);
+        logLineSeparator();
+    }
+
+    public void log(String message) {
+        log.append(message);
+    }
+
+    public String getLog() {
+        return log.toString();
     }
 }

@@ -1,5 +1,6 @@
 package com.pladen.adapter.impl.sql;
 
+import static com.pladen.entity.DataType.DATE;
 import static com.pladen.entity.DataType.STRING;
 import static com.pladen.entity.DataType.TEXT;
 import static com.pladen.entity.DataType.values;
@@ -10,6 +11,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.pladen.adapter.DataProviderInput;
+import com.pladen.dto.ExecutionContext;
 import com.pladen.dto.Parameter;
 import com.pladen.service.CommonHelper;
 import java.sql.Connection;
@@ -84,13 +86,14 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
     @Override
     public Pair<List<String>, JsonNode> getData(DataProviderInput input, boolean loggingEnabled) {
         final SqlInput sqlInput = new SqlInput(input);
+        final ExecutionContext inputContext = input.getExecutionContext();
 
         final NamedParameterJdbcTemplate template = getNamedParameterJdbcTemplate(sqlInput);
 
-        final String query = input.getExecutionContext().populatePlaceholders(sqlInput.getQuery());
+        final String query = inputContext.populatePlaceholders(sqlInput.getQuery());
 
         if (loggingEnabled) {
-            logQueryWithParameters(query, sqlInput.getParameters());
+            inputContext.logLineWithSeparators(logQueryWithParameters(query, sqlInput.getParameters()));
         }
 
         if ("SQL_DML".equals(sqlInput.getMethod())) {
@@ -130,17 +133,18 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
         }
     }
 
-    private void logQueryWithParameters(String query, List<Parameter> parameters) {
-        String queryForLogging = "\n\n\n>>> SQL QUERY:\n\n" + query + "\n\n";
+    private String logQueryWithParameters(String query, List<Parameter> parameters) {
+        String queryForLogging = "\n>>> SQL QUERY:\n\n" + query + "\n";
 
         for (Parameter parameter : parameters) {
             queryForLogging = queryForLogging.replaceAll(":" + parameter.getName() + "\\b",
-                parameter.getType() == TEXT || parameter.getType() == STRING
+                parameter.getType() == TEXT || parameter.getType() == STRING || parameter.getType() == DATE
                     ? parameter.getValue() == null ? "null" : Matcher.quoteReplacement("'" + parameter.getValue() + "'")
                     : parameter.getValue() == null ? "null" : parameter.getValue());
         }
 
         log.info(queryForLogging);
+        return queryForLogging;
     }
 
     private void prepareSqlBlockParameters(List<Parameter> parameters, NamedParameterJdbcTemplate template) {

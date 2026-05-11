@@ -323,6 +323,7 @@
 <div class="tab">
     <button class="tablinks" onclick="openTab(event, 'data')">Data</button>
     <button class="tablinks" onclick="openTab(event, 'parameters')">Parameters</button>
+    <button class="tablinks" onclick="openTab(event, 'logs-tab')">Logs</button>
 </div>
 
 <div id="data" class="tabcontent">
@@ -337,6 +338,10 @@
 
 <div id="parameters" class="tabcontent">
     <button id="apply">Apply</button>
+</div>
+
+<div id="logs-tab" class="tabcontent">
+    <pre id="logs"></pre>
 </div>
 
 <script>
@@ -911,6 +916,10 @@
         return !(val == null || val.trim() == '');
     }
 
+    function setLogs(logs) {
+        document.getElementById("logs").innerText = logs;
+    }
+
     function clearPage() {
       removeOriginalUrl();
       clearMenu();
@@ -926,7 +935,9 @@
         eval(mainData.postProcess);
       }
 
-      if (isNotBlank(mainData.redirect)) {
+      setLogs(mainData.logs);
+
+      if (isNotBlank(mainData.redirect) && !mainData.exceptionThrown) {
         window.location.replace(mainData.redirect);
       }
       setOriginalUrl(mainData.originalUrl, mainData.originalTitle);

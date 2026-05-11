@@ -14,6 +14,7 @@ import static java.util.stream.Collectors.toMap;
 import static lombok.AccessLevel.PRIVATE;
 import static org.apache.commons.lang3.ObjectUtils.anyNotNull;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
+import static org.apache.commons.lang3.StringUtils.EMPTY;
 import static org.apache.commons.lang3.StringUtils.isNoneBlank;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -25,6 +26,7 @@ import com.pladen.adapter.DataProviderInput;
 import com.pladen.dto.ActionLinkMapping;
 import com.pladen.dto.Column;
 import com.pladen.dto.Data;
+import com.pladen.dto.Data.DataBuilder;
 import com.pladen.dto.ExecutionContext;
 import com.pladen.dto.KeyValue;
 import com.pladen.dto.MenuItem;
@@ -90,19 +92,27 @@ public class ActionProcessService {
          *todo  set apply button
          * */
 
-        final Action action = getActionByCode(actionCode);
+        final DataBuilder builder = Data.builder();
 
-        final ExecutionContext executionContext = executeAction(action.getId(), requestParameters, context);
+        ExecutionContext executionContext = null;
 
-        final List<ParameterDto> actionParameters = getActionParameters(executionContext);
+        try {
 
-        return Data.builder()
+            final Action action = getActionByCode(actionCode);
+
+            executionContext = executeAction(action.getId(),
+                action.getCode(), requestParameters, context);
+
+            final List<ParameterDto> actionParameters = getActionParameters(executionContext);
+
+            return builder.parameters(actionParameters)
+                .actionParameters(
+                    actionParameters.stream().collect(toMap(ParameterDto::getName, identity())))
                 .menuItems(getMenu(executionContext))
                 .originalUrl(requestParameters.get("_original_url"))
                 .originalTitle(requestParameters.get("_original_title"))
-                .description(executionContext.populatePlaceholders(requireNonNullElse(action.getDescription(), action.getTitle())))
-                .parameters(actionParameters)
-                .actionParameters(actionParameters.stream().collect(toMap(ParameterDto::getName, identity())))
+                .description(executionContext.populatePlaceholders(
+                    requireNonNullElse(action.getDescription(), action.getTitle())))
                 .systemParameters(getSystemParameters(actionCode))
                 .columns(getColumns(executionContext))
                 .data(executionContext.getData().orElse(null))
@@ -111,7 +121,16 @@ public class ActionProcessService {
                 .postProcess(action.getPostProcess())
                 .redirect(executionContext.populatePlaceholders(action.getRedirect()))
                 .applyButtonPost(action.isPostRequest())
+                .logs(executionContext.getLog())
                 .build();
+        } catch (Exception e) {
+            return builder
+                .logs(Optional.ofNullable(executionContext)
+                    .map(ExecutionContext::getLog)
+                    .orElse(EMPTY) + " Exception: " + e.getMessage())
+                .exceptionThrown(true)
+                .build();
+        }
     }
 
     @Transactional
@@ -122,28 +141,44 @@ public class ActionProcessService {
          *todo set apply button
          * */
 
-        final Action action = getActionByCode(actionCode);
+        final DataBuilder builder = Data.builder();
 
-        final ExecutionContext executionContext = executeAction(action.getId(), requestParameters, context, PARAMETERS_EXECUTION_GROUP);
+        ExecutionContext executionContext = null;
 
-        setExtendedParameterValues(executionContext);
+        try {
+            final Action action = getActionByCode(actionCode);
 
-        final List<ParameterDto> actionParameters = getActionParameters(executionContext);
+            executionContext = executeAction(action.getId(), action.getCode(), requestParameters,
+                context, PARAMETERS_EXECUTION_GROUP);
 
-        return Data.builder()
+            setExtendedParameterValues(executionContext);
+
+            final List<ParameterDto> actionParameters = getActionParameters(executionContext);
+
+            return builder
+                .parameters(actionParameters)
+                .actionParameters(
+                    actionParameters.stream().collect(toMap(ParameterDto::getName, identity())))
                 .menuItems(getMenu(executionContext))
                 .originalUrl(requestParameters.get("_original_url"))
                 .originalTitle(requestParameters.get("_original_title"))
                 .columns(emptyList())
                 .tab(PARAMETERS)
                 .description(executionContext.populatePlaceholders(action.getDescription()))
-                .parameters(actionParameters)
-                .actionParameters(actionParameters.stream().collect(toMap(ParameterDto::getName, identity())))
                 .systemParameters(getSystemParameters(actionCode))
                 .actionLinks(getActionLinkMappings(executionContext))
                 .postProcess(action.getPostProcess())
                 .applyButtonPost(action.isPostRequest())
+                .logs(executionContext.getLog())
                 .build();
+        } catch (Exception e) {
+            return builder
+                .logs(Optional.ofNullable(executionContext)
+                    .map(ExecutionContext::getLog)
+                    .orElse(EMPTY) + " Exception: " + e.getMessage())
+                .exceptionThrown(true)
+                .build();
+        }
     }
 
     private void setExtendedParameterValues(ExecutionContext context) {
@@ -185,7 +220,8 @@ public class ActionProcessService {
 
     private List<MenuItem> getSubmenu(String property, ExecutionContext context) {
         return context.getSystemProperty(property)
-                .map(actionCode -> executeAction(getActionByCode(actionCode).getId(), Map.of(), "system"))
+                .map(actionCode -> executeAction(getActionByCode(actionCode).getId(), actionCode, Map.of(), "system")
+                    .mergeLogsToExecutionContext(context))
                 .map(ExecutionContext::getDataAsList)
                 .map(List::getFirst)
                 .map(v -> v.get("menu"))
@@ -202,15 +238,16 @@ public class ActionProcessService {
         return actionRepository.findByIdOrElseThrow(actionId);
     }
 
-    private ExecutionContext executeAction(UUID actionId, Map<String, String> requestParameters, String environment) {
-        return executeAction(actionId, requestParameters, environment, DATA_EXECUTION_GROUP);
+    private ExecutionContext executeAction(UUID actionId, String actionCode, Map<String, String> requestParameters, String environment) {
+        return executeAction(actionId, actionCode, requestParameters, environment, DATA_EXECUTION_GROUP);
     }
 
-    private ExecutionContext executeAction(UUID actionId, Map<String, String> requestParameters, String environment, String group) {
+    private ExecutionContext executeAction(UUID actionId, String actionCode, Map<String, String> requestParameters, String environment, String group) {
 
         final ExecutionContext executionContext = new ExecutionContext(objectMapper)
                 .setEnvironment(environment)
                 .setActionId(actionId)
+                .setActionCode(actionCode)
                 .putRequestParameters(requestParameters);
 
         setProperties(executionContext);
@@ -241,6 +278,7 @@ public class ActionProcessService {
                 Optional.of(getDataByLink(link, context))
                         .filter(ignore -> isNoneBlank(link.getVariable()))
                         .ifPresent(exCon -> {
+                            exCon.mergeLogsToExecutionContext(context);
                             if (DATA_EXECUTION_GROUP.equals(link.getVariable())) {
                                 context.putData(Pair.of(
                                                 exCon.getColumns(),
@@ -358,7 +396,8 @@ public class ActionProcessService {
         return Optional.of(parameter)
                 .map(Parameter::getDictionaryLinkId)
                 .flatMap(actionLinkRepository::findById)
-                .flatMap(link -> getDataByLink(link, context).getData())
+                .flatMap(link -> getDataByLink(link, context).mergeLogsToExecutionContext(context)
+                    .getData())
                 .map(ExecutionContext::nodeToList)
                 .orElseGet(List::of)
                 .stream()
@@ -390,7 +429,8 @@ public class ActionProcessService {
                 .filter(pair -> nonNull(pair.getValue()))
                 .collect(toMap(KeyValue::getKey, KeyValue::getValue));
 
-        return executeAction(link.getChildAction().getId(), requestParameters, executionContext.getEnvironment(),
+        return executeAction(link.getChildAction().getId(), link.getChildAction().getCode(),
+            requestParameters, executionContext.getEnvironment(),
                 link.getChildAction().getId().equals(executionContext.getActionId()) ? null : DATA_EXECUTION_GROUP);
     }
 
