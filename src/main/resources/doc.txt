@@ -1,5 +1,3 @@
-exceptions
-metadata tab
 virtual threads
 add null value into dictionary
-parameters post request
+remove columns
