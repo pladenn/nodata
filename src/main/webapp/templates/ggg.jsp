@@ -488,7 +488,7 @@
         let body = {};
       for (let parameter of parameters) {
         let field = document.getElementById(parameter.id);
-        body[parameter.name] = field.type === "checkbox" ? field.checked : field.value;
+        body[parameter.name] = field.type === "checkbox" ? field.checked : toNullValue(field.value);
       }
 
       body[ORIGINAL_URL_ID] = mainData.originalUrl ?? '';

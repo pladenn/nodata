@@ -207,6 +207,7 @@ public class ActionProcessService {
         return context.getColumns()
                 .stream()
                 .filter(name -> !"__objekt".equalsIgnoreCase(name))
+                .filter(name -> !"__object".equalsIgnoreCase(name))
                 .map(Column::new)
                 .toList();
     }
@@ -301,6 +302,10 @@ public class ActionProcessService {
                             }
                         })
                 );
+
+        if (context.getData().isEmpty() && DATA_EXECUTION_GROUP.equals(group)) {
+            context.putData(getData(context));
+        }
 
         return context;
     }
