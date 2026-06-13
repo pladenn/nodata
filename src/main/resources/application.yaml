@@ -1,5 +1,5 @@
 server:
-  port: 9955
+  port: 9944
 spring:
   liquibase:
     change-log: classpath:db/changelog.xml

@@ -102,6 +102,17 @@ public class ActionProcessService {
 
             executionContext = executeAction(action.getId(),
                 action.getCode(), requestParameters, context);
+//todo
+
+//            executionContext.log("""
+//                ┌────┬──────────────┬─────────────┐
+//                │ №  │ Товар        │ Цена        │
+//                ├────┼──────────────┼─────────────┤
+//                │ 1  │ Кофе         │ 150 руб.    │
+//                │ 2  │ Круассан     │ 120 руб.    │
+//                │ 3  │ Чизкейк      │ 210 руб.    │
+//                └────┴──────────────┴─────────────┘
+//                """);
 
             final List<ParameterDto> actionParameters = getActionParameters(executionContext);
 

@@ -1,3 +1,10 @@
 virtual threads
 add null value into dictionary
 remove columns
+
+name dictionaries
+migrate properties
+remove connection columns
+pseudo graphic table
+replace 9955 port with a property
+simplify db update
