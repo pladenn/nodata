@@ -2,6 +2,7 @@ package com.pladen.controller;
 
 import static lombok.AccessLevel.PRIVATE;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.pladen.dto.Data;
 import com.pladen.service.ActionProcessService;
 import com.pladen.service.CommonHelper;
@@ -76,5 +77,16 @@ public class ControllerV1 {
 
         return actionProcessService.processActionRequest(context, code, requestParams);
     }
+
+  @SneakyThrows
+  @Transactional
+  @GetMapping(BASE_PATH + "/{context}/{code}/data/short")
+  public @ResponseBody JsonNode actionShortData(@PathVariable("context") String context,
+      @PathVariable("code") String code,
+      @RequestParam Map<String, String> requestParams) {
+
+    return actionProcessService.processActionRequest(context, code, requestParams)
+        .getData();
+  }
 
 }

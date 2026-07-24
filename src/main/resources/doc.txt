@@ -6,5 +6,4 @@ name dictionaries
 migrate properties
 remove connection columns
 pseudo graphic table
-replace 9955 port with a property
 simplify db update
