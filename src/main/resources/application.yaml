@@ -6,7 +6,6 @@ spring:
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://localhost:5432/nodata
-#    url: jdbc:postgresql://localhost:5432/nodata1
     username: postgres
     password: postgres
   mvc:
