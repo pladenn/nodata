@@ -2,7 +2,7 @@ server:
   port: 9944
 spring:
   liquibase:
-    change-log: classpath:db/changelog.xml
+    change-log: classpath:changelog.xml
   datasource:
     driver-class-name: org.postgresql.Driver
     url: jdbc:postgresql://localhost:5432/nodata
