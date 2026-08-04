@@ -6,6 +6,7 @@ create table tmp_connection as select * from connection;
 create table tmp_parameter as select * from parameter;
 create table tmp_property as select * from property;
 create table tmp_property_category as select * from property_category;
+create table tmp_properties as select * from properties;
 create table tmp_sys_obj as select * from sys_obj;
 
 drop table if exists sys_obj;
@@ -23,7 +24,8 @@ union all select id, 'column' tbl from "column"
 union all select id, 'connection' tbl from connection
 union all select id, 'parameter' tbl from parameter
 union all select id, 'property' tbl from property
-union all select id, 'property_category' tbl from property_category;
+union all select id, 'property_category' tbl from property_category
+union all select id, 'properties' tbl from properties;
 
 create table tmp_del_sys_obj as
 select * from tmp_sys_obj
