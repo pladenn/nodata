@@ -1,23 +1,23 @@
 package com.pladen.service;
 
+import static com.pladen.dto.Column.MESSAGE;
+import static lombok.AccessLevel.PRIVATE;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.experimental.FieldDefaults;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.stereotype.Component;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-
-import static com.pladen.dto.Column.MESSAGE;
-import static lombok.AccessLevel.PRIVATE;
 
 @Component
 @RequiredArgsConstructor
@@ -60,4 +60,15 @@ public class CommonHelper {
         return Pair.of(new ArrayList<>(data.keySet()), List.of(data));
     }
 
+    public boolean isValidJson(String json) {
+      if (json == null || json.isBlank()) {
+        return false;
+      }
+      try {
+        final JsonNode jsonNode = objectMapper.readTree(json);
+        return !jsonNode.isArray();
+      } catch (JsonProcessingException e) {
+        return false;
+      }
+  }
 }

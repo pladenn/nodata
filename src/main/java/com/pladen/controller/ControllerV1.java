@@ -5,12 +5,15 @@ import static java.util.Objects.nonNull;
 import static lombok.AccessLevel.PRIVATE;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.pladen.dto.Data;
 import com.pladen.service.ActionProcessService;
 import com.pladen.service.CommonHelper;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.experimental.FieldDefaults;
@@ -64,9 +67,9 @@ public class ControllerV1 {
     @PostMapping( BASE_PATH + "/{context}/{code}")
     public @ResponseBody Data actionView(@PathVariable("context") String context,
         @PathVariable("code") String code,
-        @RequestBody Map<String, String> requestParams) {
+        @RequestBody String requestBody) {
 
-        return actionProcessService.processActionRequest(context, code, requestParams);
+        return actionProcessService.processActionRequest(context, code, handleRequestBody(requestBody));
     }
 
     @SneakyThrows
@@ -101,7 +104,7 @@ public class ControllerV1 {
 
     System.out.println("short " + code + " " + requestParams.toString());
 
-    return actionProcessService.processActionRequest(context, code, requestParams)
+    return actionProcessService.processActionRequestShort(context, code, requestParams)
         .getData();
   }
 
@@ -113,7 +116,7 @@ public class ControllerV1 {
       @RequestParam Map<String, String> requestParams) {
 
     System.out.println("short/index " + code + " " + requestParams.toString());
-    return actionProcessService.processActionRequest(context, code, requestParams)
+    return actionProcessService.processActionRequestShort(context, code, requestParams)
         .getData()
         .get(0);
   }
@@ -123,20 +126,20 @@ public class ControllerV1 {
   @PostMapping(BASE_PATH + "/{context}/{code}/data/short")
   public @ResponseBody JsonNode actionShortDataPost(@PathVariable("context") String context,
       @PathVariable("code") String code,
-      @RequestBody Map<String, String> requestParams) {
+      @RequestBody String requestBody) {
 
-    return actionProcessService.processActionRequest(context, code, requestParams)
+    return actionProcessService.processActionRequestShort(context, code, handleRequestBody(requestBody))
         .getData();
   }
 
   @SneakyThrows
   @Transactional
   @PostMapping(BASE_PATH + "/{context}/{code}/data/short/first")
-  public @ResponseBody JsonNode actionShortDataPostByIndex(@PathVariable("context") String context,
+  public @ResponseBody JsonNode actionShortDataPostFirst(@PathVariable("context") String context,
       @PathVariable("code") String code,
-      @RequestBody Map<String, String> requestParams) {
+      @RequestBody String requestBody) {
 
-    return actionProcessService.processActionRequest(context, code, requestParams)
+    return actionProcessService.processActionRequestShort(context, code, handleRequestBody(requestBody))
         .getData()
         .get(0);
   }
@@ -159,6 +162,24 @@ public class ControllerV1 {
     return ResponseEntity.status(data.at("/status").asInt())
         .contentType(APPLICATION_JSON)
         .body(data.at("/body").asText().getBytes());
+  }
+
+  private Map<String, String> handleRequestBody(String requestBody) {
+    final Map<String, String> requestParams = new HashMap<>(Map.of("__request_body", requestBody));
+
+    Optional.of(requestBody)
+        .filter(commonHelper::isValidJson)
+        .map(json -> commonHelper.jsonToObject(json,
+            new TypeReference<Map<String, String>>() {}))
+        .orElseGet(Map::of)
+        .entrySet()
+        .stream()
+        .filter(entry -> entry.getKey() != null && entry.getValue() != null)
+        .forEach((entry) ->
+            requestParams.merge(entry.getKey(), entry.getValue(), (v1, v2) -> v2)
+        );
+
+    return requestParams;
   }
 
 }

@@ -145,6 +145,42 @@ public class ActionProcessService {
     }
 
     @Transactional
+    public Data processActionRequestShort(@NonNull String context, @NonNull String actionCode,
+        @NonNull Map<String, String> requestParameters) {
+
+      /*
+       *todo  set apply button
+       * */
+
+      final DataBuilder builder = Data.builder();
+
+      ExecutionContext executionContext = null;
+
+      try {
+
+        final Action action = getActionByCode(actionCode);
+
+        executionContext = executeAction(action.getId(),
+            action.getCode(), requestParameters, context);
+
+        final List<ParameterDto> actionParameters = getActionParameters(executionContext);
+
+        return builder.parameters(actionParameters)
+            .actionParameters(
+                actionParameters.stream().collect(toMap(ParameterDto::getName, identity())))
+            .data(executionContext.getData().orElse(null))
+            .build();
+      } catch (Exception e) {
+        return builder
+            .logs(Optional.ofNullable(executionContext)
+                .map(ExecutionContext::getLog)
+                .orElse(EMPTY) + " Exception: " + e.getMessage())
+            .exceptionThrown(true)
+            .build();
+      }
+    }
+
+    @Transactional
     public Data processParametersRequest(@NonNull String context, @NonNull String actionCode,
                                          @NonNull Map<String, String> requestParameters) {
 
