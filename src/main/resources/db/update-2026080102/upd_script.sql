@@ -167,7 +167,6 @@ value = t2.value
 drop table sys_obj;
 create table sys_obj as select * from tmp_sys_obj;
 
-delete from properties where id in (select id from tmp_del_sys_obj);
 delete from property where id in (select id from tmp_del_sys_obj);
 delete from property_category where id in (select id from tmp_del_sys_obj);
 delete from action_link_mapping where id in (select id from tmp_del_sys_obj);
