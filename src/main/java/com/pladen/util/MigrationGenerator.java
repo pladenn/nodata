@@ -39,8 +39,8 @@ import java.util.Map;
  *       against the {@code sys_obj} manifest (which now stores {@code (id, tbl, hash)}). Then
  *       rebuild the manifest with current hashes, compute {@code tmp_del_sys_obj} (objects
  *       deleted on dev, so their deletion propagates to work), and strip the
- *       {@link #EXCLUDED_ROWS work-only rows} (the custom sub-menu) so they are never
- *       overwritten in work.</li>
+ *       {@link #EXCLUDED_ROWS work-authoritative rows} (the interface menu — its renderer,
+ *       its JSON document and its property_category) so they are never overwritten in work.</li>
  *   <li><b>Dump</b> each {@code tmp_*} table with {@code pg_dump --column-inserts}
  *       (CREATE&nbsp;TABLE + INSERTs) into the new folder.</li>
  *   <li><b>Generate</b> {@code upd_script.sql} by <i>introspecting the current columns</i>
@@ -93,13 +93,30 @@ public class MigrationGenerator {
     );
 
     /**
-     * Work-instance-only rows to exclude from the migration so a dev→work run never overwrites
-     * them. These are removed from the {@code tmp_*} copies during preparation. Currently the
-     * custom sub-menu (which is maintained only in the work instance).
+     * Rows whose <b>work-instance</b> copy is authoritative and must never be overwritten by a
+     * dev→work run. These are deleted from the {@code tmp_*} copies during preparation, so they
+     * are never dumped and never merged.
+     *
+     * <p>All of these belong to the <b>interface menu</b>, which each instance maintains for
+     * itself (dev's menu lists its examples; work's lists the real FindLaw actions):
+     * <ul>
+     *   <li>{@code custom-sub-menu} — the menu <i>renderer</i> ({@code build_menu}).</li>
+     *   <li>{@code custom-sub-menu-json} — the menu <i>document</i>: the menu tree lives in this
+     *       action's {@code content} column, which the renderer fetches over HTTP. Excluded
+     *       because the two instances legitimately hold different menus under the same id.</li>
+     *   <li>the menu's {@code property_category} row.</li>
+     * </ul>
+     *
+     * <p><b>Caveat:</b> this list only protects against being <i>overwritten</i>. Deletion still
+     * propagates — if one of these ids is dropped on dev it lands in {@code tmp_del_sys_obj} and
+     * the work row is deleted with it.
      */
     private static final List<ExcludedRow> EXCLUDED_ROWS = List.of(
             new ExcludedRow("property_category", "6d0f1247-e398-03b4-aa5e-269ade84af52"),
-            new ExcludedRow("action", "e587b6a0-ef4c-2f7b-4a69-5c8fc19f22f2")
+            // custom-sub-menu — the renderer
+            new ExcludedRow("action", "e587b6a0-ef4c-2f7b-4a69-5c8fc19f22f2"),
+            // custom-sub-menu-json — the menu document (content column)
+            new ExcludedRow("action", "30bb03df-85fe-4c5d-bcaf-43c8b99044ba")
     );
 
     // ---------------------------------------------------------------------

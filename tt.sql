@@ -1,0 +1,18 @@
+CREATE TABLE files (
+    id   SERIAL PRIMARY KEY,
+    file VARCHAR(300) UNIQUE NOT NULL
+);
+
+CREATE TABLE tags (
+    id  SERIAL PRIMARY KEY,
+    tag VARCHAR(200) UNIQUE NOT NULL
+);
+
+CREATE TABLE files_tags (
+    file_id INTEGER NOT NULL REFERENCES files (id) ON DELETE CASCADE,
+    tag_id  INTEGER NOT NULL REFERENCES tags (id) ON DELETE CASCADE,
+    PRIMARY KEY (file_id, tag_id)
+);
+
+ALTER TABLE files ADD COLUMN "desc" TEXT;
+
