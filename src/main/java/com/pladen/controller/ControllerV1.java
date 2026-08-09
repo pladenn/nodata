@@ -20,6 +20,7 @@ import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
@@ -67,9 +69,11 @@ public class ControllerV1 {
     @PostMapping( BASE_PATH + "/{context}/{code}")
     public @ResponseBody Data actionView(@PathVariable("context") String context,
         @PathVariable("code") String code,
-        @RequestBody String requestBody) {
+        @RequestParam Map<String, String> queryParams,
+        @RequestBody String requestBody,
+        @RequestHeader HttpHeaders httpHeaders) {
 
-        return actionProcessService.processActionRequest(context, code, handleRequestBody(requestBody));
+        return actionProcessService.processActionRequest(context, code, handleRequestBody(requestBody, queryParams, httpHeaders));
     }
 
     @SneakyThrows
@@ -126,9 +130,11 @@ public class ControllerV1 {
   @PostMapping(BASE_PATH + "/{context}/{code}/data/short")
   public @ResponseBody JsonNode actionShortDataPost(@PathVariable("context") String context,
       @PathVariable("code") String code,
-      @RequestBody String requestBody) {
+      @RequestParam Map<String, String> queryParams,
+      @RequestBody String requestBody,
+      @RequestHeader HttpHeaders httpHeaders) {
 
-    return actionProcessService.processActionRequestShort(context, code, handleRequestBody(requestBody))
+    return actionProcessService.processActionRequestShort(context, code, handleRequestBody(requestBody, queryParams, httpHeaders))
         .getData();
   }
 
@@ -137,9 +143,11 @@ public class ControllerV1 {
   @PostMapping(BASE_PATH + "/{context}/{code}/data/short/first")
   public @ResponseBody JsonNode actionShortDataPostFirst(@PathVariable("context") String context,
       @PathVariable("code") String code,
-      @RequestBody String requestBody) {
+      @RequestParam Map<String, String> queryParams,
+      @RequestBody String requestBody,
+      @RequestHeader HttpHeaders httpHeaders) {
 
-    return actionProcessService.processActionRequestShort(context, code, handleRequestBody(requestBody))
+    return actionProcessService.processActionRequestShort(context, code, handleRequestBody(requestBody, queryParams, httpHeaders))
         .getData()
         .get(0);
   }
@@ -164,8 +172,18 @@ public class ControllerV1 {
         .body(data.at("/body").asText().getBytes());
   }
 
-  private Map<String, String> handleRequestBody(String requestBody) {
-    final Map<String, String> requestParams = new HashMap<>(Map.of("__request_body", requestBody));
+  private Map<String, String> handleRequestBody(String requestBody,
+      Map<String, String> queryParams,
+      HttpHeaders httpHeaders) {
+
+    final Map<String, String> requestParams = new HashMap<>(queryParams);
+    requestParams.put("__request_body", requestBody);
+
+    if (Optional.ofNullable(httpHeaders.getContentType())
+        .filter(mediaType -> mediaType.isCompatibleWith(APPLICATION_JSON))
+        .isEmpty()) {
+      return requestParams;
+    }
 
     Optional.of(requestBody)
         .filter(commonHelper::isValidJson)

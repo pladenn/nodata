@@ -122,8 +122,10 @@ public class ActionProcessService {
                 .menuItems(getMenu(executionContext))
                 .originalUrl(requestParameters.get("_original_url"))
                 .originalTitle(requestParameters.get("_original_title"))
-                .description(executionContext.populatePlaceholders(
-                    requireNonNullElse(action.getDescription(), action.getTitle())))
+                .description(StringUtils.firstNonBlank(
+                  executionContext.populatePlaceholders(action.getTitle()),
+                  action.getName(),
+                  action.getCode()))
                 .systemParameters(getSystemParameters(actionCode))
                 .columns(getColumns(executionContext))
                 .data(executionContext.getData().orElse(null))

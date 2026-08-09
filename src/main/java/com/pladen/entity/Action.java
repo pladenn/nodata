@@ -29,6 +29,7 @@ public class Action {
     String query;
     String content;
     String execution_type;
+    String name;
     String title;
     String postProcess;
     String description;
