@@ -43,6 +43,7 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
                 CREATE TEMPORARY TABLE if not exists sql_block_parameters(
                            name varchar(50),
                            type varchar(50),
+                           from_request boolean,
                            %s
                       );
             
@@ -56,7 +57,7 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
     );
 
     private static final String INSERT_SQL_BLOCK_PARAMETER = """
-            insert into sql_block_parameters(name, type, %s) values(:name, :type, %s)
+            insert into sql_block_parameters(name, type, from_request, %s) values(:name, :type, :from_request, %s)
             """.formatted(
             Arrays.stream(values())
                     .filter(type -> TEXT != type)
@@ -155,6 +156,7 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
 
             queryParams.addValue("name", parameter.getName());
             queryParams.addValue("type", parameter.getType().name());
+            queryParams.addValue("from_request", parameter.getFromRequest());
 
             Arrays.stream(values())
                     .filter(type -> TEXT != type)

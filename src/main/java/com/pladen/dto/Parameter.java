@@ -26,4 +26,5 @@ public class Parameter {
     UUID dictionaryLinkId;
     String dictionaryNameColumn;
     String dictionaryValueColumn;
+    Boolean fromRequest;
 }

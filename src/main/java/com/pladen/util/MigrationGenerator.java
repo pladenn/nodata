@@ -1,6 +1,12 @@
 package com.pladen.util;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
@@ -12,12 +18,15 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Generates a Liquibase migration folder that copies the nodata <b>configuration</b>
@@ -33,7 +42,11 @@ import java.util.Map;
  *
  * <p>What it does, in order:
  * <ol>
- *   <li><b>Prepare</b> (JDBC, against dev): snapshot every {@link #TABLES migrated table}
+ *   <li><b>Discover</b> the tables to migrate by calling nodata's own
+ *       {@link #TABLES_URL system-tables-ddl} action over HTTP — see
+ *       {@link #fetchTables()}. The list used to be hard-coded here; the action derives it
+ *       from the live catalogue, already ordered parent&nbsp;→&nbsp;child.</li>
+ *   <li><b>Prepare</b> (JDBC, against dev): snapshot every migrated table
  *       into a {@code tmp_*} copy — but only the rows that are <i>new or changed</i> since the
  *       last migration, detected by comparing each row's {@code md5(to_jsonb(...))} content-hash
  *       against the {@code sys_obj} manifest (which now stores {@code (id, tbl, hash)}). Then
@@ -44,8 +57,9 @@ import java.util.Map;
  *   <li><b>Dump</b> each {@code tmp_*} table with {@code pg_dump --column-inserts}
  *       (CREATE&nbsp;TABLE + INSERTs) into the new folder.</li>
  *   <li><b>Generate</b> {@code upd_script.sql} by <i>introspecting the current columns</i>
- *       of each table, so adding/removing a column or table only needs an edit to
- *       {@link #TABLES} — no hand-maintained SQL.</li>
+ *       of each table. Between this and the discovery step, adding or removing a table or a
+ *       column needs <b>no edit here at all</b> — no hand-maintained list, no hand-maintained
+ *       SQL.</li>
  * </ol>
  *
  * <p>File naming guarantees load order inside the folder: every data file starts with
@@ -76,21 +90,30 @@ public class MigrationGenerator {
     private static final String PG_DUMP = "C:\\Program Files\\PostgreSQL\\16\\bin\\pg_dump.exe";
 
     /**
-     * Tables to migrate, ordered <b>parent → child</b>. MERGE (insert/update by id) runs in
-     * this order; delete-propagation runs in the <i>reverse</i> (child → parent) order. To add
-     * or remove a table from the migration, just edit this list.
+     * The {@code system-tables-ddl} action on the <b>dev</b> instance, which returns every table
+     * of the config DB ordered <b>parent → child</b> by foreign-key dependency (liquibase's own
+     * tables already excluded). This replaces what used to be a hard-coded list.
+     *
+     * <p><b>The dev app must be running</b> for a migration run — the generator now needs both
+     * the database and the HTTP endpoint. It deliberately fails loudly rather than falling back
+     * to a built-in list, because a stale list would silently under-migrate.
      */
-    private static final List<String> TABLES = List.of(
-            "connection",
-            "action",
-            "action_link",
-            "column",
-            "parameter",
-            "action_link_mapping",
-            "property_category",
-            "property",
-            "properties"
-    );
+    private static final String TABLES_URL =
+            "http://localhost:9944/content/system/system-tables-ddl/data/short";
+
+    /**
+     * Tables the action reports but which must <b>not</b> be migrated as ordinary data.
+     *
+     * <p>Only {@code sys_obj}, the migration manifest itself. It is rebuilt from the live tables
+     * on every run and travels to work as {@code tmp_sys_obj}, then replaces work's copy
+     * wholesale (see {@link #generateUpdScript}); merging it row-by-row like a normal table
+     * would be circular.
+     *
+     * <p>{@code tmp_*} tables are skipped separately, by prefix — they are this generator's own
+     * scratch tables. A completed run drops them, but an aborted one leaves them behind, and
+     * they must never be mistaken for config tables on the next run.
+     */
+    private static final Set<String> NOT_MIGRATED = Set.of("sys_obj");
 
     /**
      * Rows whose <b>work-instance</b> copy is authoritative and must never be overwritten by a
@@ -140,6 +163,10 @@ public class MigrationGenerator {
     }
 
     public static void main(String[] args) throws Exception {
+        // Discover the table list BEFORE creating the output folder, so a failure here
+        // (dev app down, action broken) doesn't leave an empty update-* folder behind.
+        List<String> tables = fetchTables();
+
         Db db = Db.parse(SOURCE_DB_URI);
         Path outDir = createOutputDir();
         System.out.println("Migration folder: " + outDir);
@@ -152,30 +179,98 @@ public class MigrationGenerator {
 
         try (Connection conn = DriverManager.getConnection(db.jdbcUrl(), db.user(), db.password())) {
             conn.setAutoCommit(true); // pg_dump reads committed data in a separate process
-            prepare(conn);
-            Map<String, List<String>> columns = introspectColumns(conn);
+            prepare(conn, tables);
+            Map<String, List<String>> columns = introspectColumns(conn, tables);
 
-            dumpTables(outDir); // pg_dump reads the committed tmp_* tables
+            dumpTables(outDir, tables); // pg_dump reads the committed tmp_* tables
 
             Files.writeString(outDir.resolve("upd_script.sql"),
-                    generateUpdScript(columns), StandardCharsets.UTF_8);
+                    generateUpdScript(tables, columns), StandardCharsets.UTF_8);
             System.out.println("Wrote upd_script.sql");
 
             // Drop the tmp_* tables from dev now that they are dumped. dev and work share this
             // codebase, so Liquibase will later apply the generated folder against dev too; its
             // tmp_*.sql files must be able to CREATE these tables, and leftovers would collide
             // with "relation already exists". (sys_obj is the persistent manifest — kept.)
-            dropTmpTables(conn);
+            dropTmpTables(conn, tables);
         }
 
         System.out.println("Done. Reboot the work instance to apply.");
     }
 
     // ---------------------------------------------------------------------
+    // Step 0 — discover the table list from the system-tables-ddl action
+    // ---------------------------------------------------------------------
+
+    /**
+     * Fetches the migrated tables, in parent → child order, from {@link #TABLES_URL}.
+     *
+     * <p>Each response row carries the display columns {@code order} / {@code name} plus an
+     * {@code __object} with the full record; the bare table name is read from
+     * {@code __object.table} rather than by splitting the qualified {@code name}, and rows are
+     * re-sorted by {@code order} so the result does not depend on the endpoint preserving array
+     * order.
+     */
+    private static List<String> fetchTables() throws IOException, InterruptedException {
+        HttpRequest request = HttpRequest.newBuilder(URI.create(TABLES_URL))
+                .timeout(Duration.ofSeconds(30))
+                .GET()
+                .build();
+
+        HttpResponse<String> response;
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            // Bare "Connection refused" gives no clue that this tool now needs the app, not just
+            // the DB — the dependency is new and easy to forget.
+            throw new IOException("Could not reach " + TABLES_URL
+                    + " - start the dev instance (9944) before generating a migration.", e);
+        }
+        if (response.statusCode() != 200) {
+            throw new IllegalStateException("GET " + TABLES_URL + " returned HTTP "
+                    + response.statusCode() + "\n" + response.body());
+        }
+
+        JsonNode rows = new ObjectMapper().readTree(response.body());
+        if (!rows.isArray() || rows.isEmpty()) {
+            // A failing SELECT action still answers 200 with an empty data node; the reason is
+            // only visible on the /data (long) form.
+            throw new IllegalStateException("No tables returned by " + TABLES_URL
+                    + " - check the action's /data response for exceptionThrown. Body:\n"
+                    + response.body());
+        }
+
+        List<JsonNode> ordered = new ArrayList<>();
+        rows.forEach(ordered::add);
+        ordered.sort(Comparator.comparingInt(row -> row.path("order").asInt()));
+
+        List<String> tables = new ArrayList<>();
+        for (JsonNode row : ordered) {
+            JsonNode name = row.path("__object").path("table");
+            if (name.isMissingNode() || !name.isTextual()) {
+                throw new IllegalStateException(
+                        "Row from " + TABLES_URL + " has no __object.table: " + row);
+            }
+            String table = name.asText();
+            if (NOT_MIGRATED.contains(table) || table.startsWith("tmp_")) {
+                continue;
+            }
+            tables.add(table);
+        }
+        if (tables.isEmpty()) {
+            throw new IllegalStateException("Every table returned by " + TABLES_URL
+                    + " was excluded - nothing to migrate.");
+        }
+
+        System.out.println("Migrating " + tables.size() + " table(s): " + String.join(", ", tables));
+        return tables;
+    }
+
+    // ---------------------------------------------------------------------
     // Step 1 — preparation (equivalent to scripts/db_preparation.sql)
     // ---------------------------------------------------------------------
 
-    private static void prepare(Connection conn) throws SQLException {
+    private static void prepare(Connection conn, List<String> tables) throws SQLException {
         List<String> ddl = new ArrayList<>();
 
         // Ensure the manifest exists (bootstraps the very first run) and has the hash column
@@ -192,8 +287,8 @@ public class MigrationGenerator {
         // This is the ONLY place rows are hashed — the tmp_* snapshots below reuse these hashes
         // instead of recomputing md5.
         StringBuilder manifest = new StringBuilder("create table sys_obj as\n");
-        for (int i = 0; i < TABLES.size(); i++) {
-            String name = TABLES.get(i);
+        for (int i = 0; i < tables.size(); i++) {
+            String name = tables.get(i);
             manifest.append(i == 0 ? "select" : "union all select")
                     .append(" x.id, '").append(name).append("' tbl, ").append(rowHash("x"))
                     .append(" hash from ").append(q(name)).append(" x\n");
@@ -212,7 +307,7 @@ public class MigrationGenerator {
                 + "where o.hash is distinct from s.hash");
 
         // Each tmp_* snapshot = the live rows whose id is present in the delta set for that table.
-        for (String t : TABLES) {
+        for (String t : tables) {
             ddl.add("drop table if exists " + tmp(t));
             ddl.add("create table " + tmp(t) + " as\n"
                     + "select x.* from " + q(t) + " x\n"
@@ -241,19 +336,20 @@ public class MigrationGenerator {
                 st.execute(sql);
             }
         }
-        System.out.println("Prepared " + TABLES.size() + " tmp_* tables + sys_obj manifest.");
+        System.out.println("Prepared " + tables.size() + " tmp_* tables + sys_obj manifest.");
     }
 
     // ---------------------------------------------------------------------
     // Column introspection
     // ---------------------------------------------------------------------
 
-    private static Map<String, List<String>> introspectColumns(Connection conn) throws SQLException {
+    private static Map<String, List<String>> introspectColumns(Connection conn, List<String> tables)
+            throws SQLException {
         Map<String, List<String>> result = new LinkedHashMap<>();
         String sql = "select column_name from information_schema.columns "
                 + "where table_schema = 'public' and table_name = ? order by ordinal_position";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            for (String t : TABLES) {
+            for (String t : tables) {
                 List<String> cols = new ArrayList<>();
                 ps.setString(1, t);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -276,9 +372,9 @@ public class MigrationGenerator {
     // ---------------------------------------------------------------------
 
     /** The tmp_* tables that make up a migration folder (dumped, and dropped from dev afterward). */
-    private static List<String> migrationTmpTables() {
+    private static List<String> migrationTmpTables(List<String> tables) {
         List<String> tmpTables = new ArrayList<>();
-        for (String t : TABLES) {
+        for (String t : tables) {
             tmpTables.add(tmp(t));
         }
         tmpTables.add("tmp_del_sys_obj");
@@ -286,8 +382,9 @@ public class MigrationGenerator {
         return tmpTables;
     }
 
-    private static void dumpTables(Path outDir) throws IOException, InterruptedException {
-        for (String tmpTable : migrationTmpTables()) {
+    private static void dumpTables(Path outDir, List<String> tables)
+            throws IOException, InterruptedException {
+        for (String tmpTable : migrationTmpTables(tables)) {
             Path file = outDir.resolve(tmpTable + ".sql");
             List<String> cmd = List.of(
                     PG_DUMP,
@@ -315,8 +412,8 @@ public class MigrationGenerator {
      * and its {@code tmp_*.sql} files CREATE these tables — leftovers on dev would collide. The
      * {@code sys_obj} manifest is intentionally kept (it is the baseline for the next run).
      */
-    private static void dropTmpTables(Connection conn) throws SQLException {
-        List<String> tmpTables = migrationTmpTables();
+    private static void dropTmpTables(Connection conn, List<String> tables) throws SQLException {
+        List<String> tmpTables = migrationTmpTables(tables);
         try (Statement st = conn.createStatement()) {
             for (String tmpTable : tmpTables) {
                 st.execute("drop table if exists " + tmpTable);
@@ -329,11 +426,11 @@ public class MigrationGenerator {
     // Step 3 — generate upd_script.sql from the introspected columns
     // ---------------------------------------------------------------------
 
-    private static String generateUpdScript(Map<String, List<String>> columns) {
+    private static String generateUpdScript(List<String> tables, Map<String, List<String>> columns) {
         StringBuilder sb = new StringBuilder();
 
         // MERGE (insert/update by id) each table, parent -> child.
-        for (String t : TABLES) {
+        for (String t : tables) {
             List<String> cols = columns.get(t);
             sb.append("MERGE INTO ").append(q(t)).append(" t1 USING ").append(tmp(t))
                     .append(" t2 ON t1.id = t2.id\n");
@@ -360,14 +457,14 @@ public class MigrationGenerator {
         sb.append("create table sys_obj as select * from tmp_sys_obj;\n\n");
 
         // Propagate deletions, child -> parent.
-        for (int i = TABLES.size() - 1; i >= 0; i--) {
-            sb.append("delete from ").append(q(TABLES.get(i)))
+        for (int i = tables.size() - 1; i >= 0; i--) {
+            sb.append("delete from ").append(q(tables.get(i)))
                     .append(" where id in (select id from tmp_del_sys_obj);\n");
         }
         sb.append('\n');
 
         // Clean up all tmp_* tables in work.
-        for (String t : TABLES) {
+        for (String t : tables) {
             sb.append("drop table ").append(tmp(t)).append(";\n");
         }
         sb.append("drop table tmp_del_sys_obj;\n");

@@ -188,16 +188,32 @@ public class ControllerV1 {
     Optional.of(requestBody)
         .filter(commonHelper::isValidJson)
         .map(json -> commonHelper.jsonToObject(json,
-            new TypeReference<Map<String, String>>() {}))
+            new TypeReference<Map<String, JsonNode>>() {}))
         .orElseGet(Map::of)
         .entrySet()
         .stream()
-        .filter(entry -> entry.getKey() != null && entry.getValue() != null)
+        // a JSON null arrives as NullNode, not as Java null -- dropping it keeps the
+        // "send null => param absent => falls back to default_value" contract
+        .filter(entry -> entry.getKey() != null
+            && entry.getValue() != null
+            && !entry.getValue().isNull())
         .forEach((entry) ->
-            requestParams.merge(entry.getKey(), entry.getValue(), (v1, v2) -> v2)
+            requestParams.merge(entry.getKey(), asParamValue(entry.getValue()), (v1, v2) -> v2)
         );
 
     return requestParams;
+  }
+
+  /**
+   * Renders a top-level body entry as a request-parameter string.
+   *
+   * <p>Scalars keep their bare text (a string value must not gain surrounding quotes), which is
+   * exactly what binding the body to a {@code Map<String, String>} used to produce. Objects and
+   * arrays are handed over as compact JSON text so an action can parse them with {@code ::jsonb}
+   * instead of failing to bind.
+   */
+  private String asParamValue(JsonNode value) {
+    return value.isValueNode() ? value.asText() : value.toString();
   }
 
 }

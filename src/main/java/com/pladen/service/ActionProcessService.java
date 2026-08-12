@@ -412,6 +412,7 @@ public class ActionProcessService {
                         .setDictionaryLinkId(param.getDictionaryLinkId())
                         .setDictionaryNameColumn(param.getNameColumn())
                         .setDictionaryValueColumn(param.getValueColumn())
+                        .setFromRequest(context.getRequestParameter(param.getName()).isPresent())
                 )
                 .toList();
     }
