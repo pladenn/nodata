@@ -15,6 +15,7 @@ import static lombok.AccessLevel.PRIVATE;
 import static org.apache.commons.lang3.ObjectUtils.anyNotNull;
 import static org.apache.commons.lang3.ObjectUtils.firstNonNull;
 import static org.apache.commons.lang3.StringUtils.EMPTY;
+import static org.apache.commons.lang3.StringUtils.firstNonBlank;
 import static org.apache.commons.lang3.StringUtils.isNoneBlank;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -122,8 +123,7 @@ public class ActionProcessService {
                 .menuItems(getMenu(executionContext))
                 .originalUrl(requestParameters.get("_original_url"))
                 .originalTitle(requestParameters.get("_original_title"))
-                .description(StringUtils.firstNonBlank(
-                  executionContext.populatePlaceholders(action.getTitle()),
+                .description(firstNonBlank(executionContext.populatePlaceholders(action.getTitle()),
                   action.getName(),
                   action.getCode()))
                 .systemParameters(getSystemParameters(actionCode))
@@ -173,11 +173,20 @@ public class ActionProcessService {
             .data(executionContext.getData().orElse(null))
             .build();
       } catch (Exception e) {
+        final String log = Optional.ofNullable(executionContext)
+            .map(ExecutionContext::getLog)
+            .orElse(EMPTY) + " Exception: " + e.getMessage();
+
+        // The short endpoints return only the data node, so diagnostics have to travel inside it or
+        // they are lost: a failure would arrive as an empty body, indistinguishable from a query
+        // that matched no rows. An object (rather than an extra row) keeps it unambiguous — a
+        // successful response is always an array.
         return builder
-            .logs(Optional.ofNullable(executionContext)
-                .map(ExecutionContext::getLog)
-                .orElse(EMPTY) + " Exception: " + e.getMessage())
+            .logs(log)
             .exceptionThrown(true)
+            .data(objectMapper.createObjectNode()
+                .put("__exceptionThrown", true)
+                .put("__logs", log))
             .build();
       }
     }
@@ -213,7 +222,9 @@ public class ActionProcessService {
                 .originalTitle(requestParameters.get("_original_title"))
                 .columns(emptyList())
                 .tab(PARAMETERS)
-                .description(executionContext.populatePlaceholders(action.getDescription()))
+                .description(firstNonBlank(executionContext.populatePlaceholders(action.getTitle()),
+                    action.getName(),
+                    action.getCode()))
                 .systemParameters(getSystemParameters(actionCode))
                 .actionLinks(getActionLinkMappings(executionContext))
                 .postProcess(action.getPostProcess())
@@ -501,7 +512,7 @@ public class ActionProcessService {
                                         + (val.isViaParameters() ? "/parameters" : ""))
                                 .title(
                                         context.populatePlaceholders(
-                                                firstNonNull(val.getTitle(), val.getChildAction().getDescription(), val.getChildAction().getTitle()))
+                                                firstNonNull(val.getTitle(), val.getChildAction().getName(), val.getChildAction().getCode()))
                                 )
                                 .mapping(getParameterMappings(val, context))
                                 .isActionTarget(MOUNTED_TO_ACTION_EXECUTION_GROUP.equals(val.getCategory()))

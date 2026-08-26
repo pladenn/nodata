@@ -3,6 +3,7 @@ package com.pladen.controller;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Objects.nonNull;
 import static lombok.AccessLevel.PRIVATE;
+import static org.springframework.http.HttpHeaders.CONTENT_TYPE;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -12,9 +13,12 @@ import com.pladen.service.ActionProcessService;
 import com.pladen.service.CommonHelper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 import lombok.SneakyThrows;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
@@ -119,10 +123,9 @@ public class ControllerV1 {
       @PathVariable("code") String code,
       @RequestParam Map<String, String> requestParams) {
 
-    System.out.println("short/index " + code + " " + requestParams.toString());
-    return actionProcessService.processActionRequestShort(context, code, requestParams)
-        .getData()
-        .get(0);
+    System.out.println("short/first " + code + " " + requestParams.toString());
+    return firstRow(actionProcessService.processActionRequestShort(context, code, requestParams)
+        .getData());
   }
 
   @SneakyThrows
@@ -147,9 +150,28 @@ public class ControllerV1 {
       @RequestBody String requestBody,
       @RequestHeader HttpHeaders httpHeaders) {
 
-    return actionProcessService.processActionRequestShort(context, code, handleRequestBody(requestBody, queryParams, httpHeaders))
-        .getData()
-        .get(0);
+    return firstRow(actionProcessService.processActionRequestShort(context, code, handleRequestBody(requestBody, queryParams, httpHeaders))
+        .getData());
+  }
+
+  /**
+   * Takes the first row of a data node. A failed action returns an error object rather than an array
+   * of rows (see ActionProcessService#processActionRequestShort); indexing into that would discard
+   * the diagnostics and hand back an empty body, so it is returned as-is.
+   */
+  private JsonNode firstRow(JsonNode data) {
+    return data != null && data.isArray() ? data.get(0) : data;
+  }
+
+  @SneakyThrows
+  @Transactional
+  @GetMapping("/test")
+  public @ResponseBody ResponseEntity<String> actionShortDataPostFirst() {
+
+    return ResponseEntity.ok()
+        .headers(httpHeaders -> httpHeaders.set("Content-Type", "text/markdown"))
+        .headers(httpHeaders -> httpHeaders.set("VVV", "ffff"))
+        .body("asdas asdasd **dasdasdasda**");
   }
 
   @SneakyThrows
@@ -168,7 +190,15 @@ public class ControllerV1 {
         ));
 
     return ResponseEntity.status(data.at("/status").asInt())
-        .contentType(APPLICATION_JSON)
+        .headers(
+            httpHeaders -> Optional.ofNullable(data.at("/headers"))
+                .map(JsonNode::toPrettyString)
+                .map(v -> commonHelper.jsonToObject(v, new TypeReference<List<Header>>() {}))
+                .orElseGet(List::of)
+                .forEach(header -> httpHeaders.set(header.getName(), header.getValue()))
+        )
+        .headers(httpHeaders -> httpHeaders.putIfAbsent(CONTENT_TYPE,
+            List.of(APPLICATION_JSON.toString())))
         .body(data.at("/body").asText().getBytes());
   }
 
@@ -214,6 +244,22 @@ public class ControllerV1 {
    */
   private String asParamValue(JsonNode value) {
     return value.isValueNode() ? value.asText() : value.toString();
+  }
+
+  @Setter
+  @Getter
+  private static class Header {
+    private String name;
+    private String value;
+
+    public Header() {
+    }
+
+    public Header(String name, String value) {
+      this.name = name;
+      this.value = value;
+    }
+
   }
 
 }

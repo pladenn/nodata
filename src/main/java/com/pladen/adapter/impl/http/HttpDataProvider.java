@@ -3,9 +3,7 @@ package com.pladen.adapter.impl.http;
 import static com.pladen.service.PropertyService.populateWithProperties;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
-import static java.util.Objects.requireNonNullElse;
 import static java.util.stream.Collectors.toMap;
-import static org.apache.commons.lang3.StringUtils.EMPTY;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.pladen.adapter.DataProvider;
@@ -13,9 +11,9 @@ import com.pladen.adapter.DataProviderInput;
 import com.pladen.dto.Parameter;
 import com.pladen.service.CommonHelper;
 import java.net.URI;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
@@ -75,31 +73,21 @@ public class HttpDataProvider implements DataProvider {
             return null;
         }
 
-        final Map<String, String> parameters = httpInput.getParameters()
+        // Collectors.toMap throws NPE on a null VALUE, and getParameters() returns every parameter
+        // declared on the action -- including any that arrived without a value and have no
+        // default_value. Skipping those leaves their placeholder unsubstituted in the body, which is
+        // both harmless and debuggable; the NPE was neither, because it surfaced as an opaque 500
+        // (getData is @Transactional, so the real exception is swallowed by the caller's catch and
+        // the commit throws instead).
+        final Map<String, String> parameters = new HashMap<>();
+        httpInput.getParameters()
                 .stream()
-                .collect(toMap(
-                        k -> "{" + k.getName() + "}",
-                        Parameter::getValue
-                ));
+                .filter(parameter -> nonNull(parameter.getValue()))
+                .forEach(parameter ->
+                        parameters.put("{" + parameter.getName() + "}", parameter.getValue()));
 
         //todo get from execution context
         return populateWithProperties(httpInput.getContent(), parameters);
-    }
-
-    //todo remove
-    private Pair<List<String>, List<Map<String, String>>> transformResponse(String body) {
-        return transformResponse(null, body);
-    }
-
-    private Pair<List<String>, List<Map<String, String>>> transformResponse(Integer statusCode, String body) {
-        final String code = Optional.ofNullable(statusCode)
-            .map(Object::toString)
-            .orElse(EMPTY);
-
-        return commonHelper.oneRowData(
-            Map.of(CODE, code,
-                BODY, requireNonNullElse(body, EMPTY))
-        );
     }
 
 }
