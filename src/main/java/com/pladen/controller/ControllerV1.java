@@ -53,7 +53,7 @@ public class ControllerV1 {
     public static final String BASE_PATH = "/content";
 
     //todo rename
-    private static final String VIEW_NAME = "ggg";
+    private static final String VIEW_NAME = "dashboard";
 
     @SneakyThrows
     @Transactional

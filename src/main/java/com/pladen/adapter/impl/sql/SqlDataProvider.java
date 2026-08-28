@@ -15,12 +15,12 @@ import com.pladen.dto.ExecutionContext;
 import com.pladen.dto.Parameter;
 import com.pladen.service.CommonHelper;
 import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.stream.IntStream;
 import lombok.SneakyThrows;
@@ -28,6 +28,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.datasource.SingleConnectionDataSource;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -55,6 +56,12 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
                     .map(type -> type.name().toLowerCase() + "_value " + type.getSqlDataType())
                     .collect(joining(", "))
     );
+
+    private static final String RESULT_PARAMETER_NAME = "__result";
+
+    private static final String SELECT_SQL_BLOCK_RESULT = """
+            select string_value from sql_block_parameters where name = '%s'
+            """.formatted(RESULT_PARAMETER_NAME);
 
     private static final String INSERT_SQL_BLOCK_PARAMETER = """
             insert into sql_block_parameters(name, type, from_request, %s) values(:name, :type, :from_request, %s)
@@ -107,27 +114,7 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
 
             return okResult1;
         } else if ("SQL_BLOCK".equals(sqlInput.getMethod())) {
-            prepareSqlBlockParameters(sqlInput.getParameters(), template);
-            template.getJdbcTemplate().execute(query);
-
-            return okResult1;
-        } else if ("SQL_BLOCK_WITH_RESULT".equals(sqlInput.getMethod())) {
-
-            prepareSqlBlockParameters(sqlInput.getParameters(), template);
-
-            return template.getJdbcTemplate().execute((Connection con) -> {
-                con.setAutoCommit(false);
-
-                try (PreparedStatement ps = con.prepareStatement(query)) {
-                    ps.execute();
-                }
-
-                try (PreparedStatement psFetch = con.prepareStatement("FETCH ALL IN \"_cursor_result\"")) {
-                    try (ResultSet rs = psFetch.executeQuery()) {
-                        return mapResultSet(rs);
-                    }
-                }
-            });
+            return executeSqlBlock(sqlInput.getParameters(), template, query);
         } else {
             return template
                 .query(query, prepareQueryParams(sqlInput.getParameters()), this::mapResultSet);
@@ -146,6 +133,35 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
 
         log.info(queryForLogging);
         return queryForLogging;
+    }
+
+    // sql_block_parameters is a per-connection temp table, so every statement below must share one physical connection.
+    private Pair<List<String>, JsonNode> executeSqlBlock(List<Parameter> parameters, NamedParameterJdbcTemplate template, String query) {
+        return template.getJdbcTemplate().execute((Connection con) -> {
+            final NamedParameterJdbcTemplate blockTemplate =
+                    new NamedParameterJdbcTemplate(new SingleConnectionDataSource(con, true));
+
+            prepareSqlBlockParameters(parameters, blockTemplate);
+            blockTemplate.getJdbcTemplate().execute(query);
+
+            return fetchSqlBlockResult(blockTemplate).orElse(okResult1);
+        });
+    }
+
+    // a block opts into returning data by inserting __result as a valid-JSON string_value; otherwise it's a plain "ok!"
+    private Optional<Pair<List<String>, JsonNode>> fetchSqlBlockResult(NamedParameterJdbcTemplate template) {
+        final List<String> results = template.getJdbcTemplate()
+                .queryForList(SELECT_SQL_BLOCK_RESULT, String.class);
+
+        if (results.isEmpty() || results.get(0) == null) {
+            return Optional.empty();
+        }
+
+        final JsonNode resultNode = commonHelper.createJsonNode(results.get(0));
+        // consumers expect an array-of-rows shape, so a scalar/object __result is wrapped into a one-element array
+        final JsonNode data = resultNode.isArray() ? resultNode : commonHelper.createArrayNode().add(resultNode);
+
+        return Optional.of(Pair.of(List.of(RESULT_PARAMETER_NAME), data));
     }
 
     private void prepareSqlBlockParameters(List<Parameter> parameters, NamedParameterJdbcTemplate template) {
