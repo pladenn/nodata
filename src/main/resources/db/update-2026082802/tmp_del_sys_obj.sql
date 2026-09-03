@@ -1,0 +1,46 @@
+--
+-- PostgreSQL database dump
+--
+
+-- Dumped from database version 16.1
+-- Dumped by pg_dump version 16.1
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- Name: tmp_del_sys_obj; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.tmp_del_sys_obj (
+    id uuid,
+    tbl text,
+    hash text
+);
+
+
+ALTER TABLE public.tmp_del_sys_obj OWNER TO postgres;
+
+--
+-- Data for Name: tmp_del_sys_obj; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+INSERT INTO public.tmp_del_sys_obj (id, tbl, hash) VALUES ('f7dcbc40-5529-4350-9579-899a11f4f85a', 'parameter', '065244c0258dcbc3eb6160457f30bd7d');
+
+
+--
+-- PostgreSQL database dump complete
+--
+
