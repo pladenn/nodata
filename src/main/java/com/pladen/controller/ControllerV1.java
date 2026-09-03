@@ -52,8 +52,7 @@ public class ControllerV1 {
 
     public static final String BASE_PATH = "/content";
 
-    //todo rename
-    private static final String VIEW_NAME = "dashboard";
+    private static final String DASHBOARD = "dashboard";
 
     @SneakyThrows
     @Transactional
@@ -65,7 +64,7 @@ public class ControllerV1 {
 
         final Data mainData = actionProcessService.processActionRequest(context, code, requestParams);
         model.addAttribute("mainData", commonHelper.objectToJson(mainData));
-        return VIEW_NAME;
+        return DASHBOARD;
     }
 
     @SneakyThrows
@@ -90,7 +89,7 @@ public class ControllerV1 {
 
         final Data mainData = actionProcessService.processParametersRequest(context, code, requestParams);
         model.addAttribute("mainData", commonHelper.objectToJson(mainData));
-        return VIEW_NAME;
+        return DASHBOARD;
     }
 
     @SneakyThrows
