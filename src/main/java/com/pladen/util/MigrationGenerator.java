@@ -123,11 +123,16 @@ public class MigrationGenerator {
      * <p>All of these belong to the <b>interface menu</b>, which each instance maintains for
      * itself (dev's menu lists its examples; work's lists the real FindLaw actions):
      * <ul>
-     *   <li>{@code custom-sub-menu} — the menu <i>renderer</i> ({@code build_menu}).</li>
-     *   <li>{@code custom-sub-menu-json} — the menu <i>document</i>: the menu tree lives in this
-     *       action's {@code content} column, which the renderer fetches over HTTP. Excluded
-     *       because the two instances legitimately hold different menus under the same id.</li>
-     *   <li>the menu's {@code property_category} row.</li>
+     *   <li>{@code custom-sub-menu} — the menu <i>renderer</i> ({@code build_menu}). Excluded
+     *       because dev's and work's query text differ structurally (work additionally defines
+     *       a per-environment {@code build_menu} function), independent of where the document
+     *       lives.</li>
+     *   <li>the menu <i>document</i> itself: a {@code properties} row (key
+     *       {@code custom-sub-menu-json}, under the {@code storage} root) that the renderer now
+     *       reads directly. Excluded because the two instances legitimately hold different menus
+     *       under the same id — formerly the {@code custom-sub-menu-json} action's
+     *       {@code content} column (fetched over HTTP); moved to {@code properties} 2026-09-08.</li>
+     *   <li>the renderer's {@code property_category} row.</li>
      * </ul>
      *
      * <p><b>Caveat:</b> this list only protects against being <i>overwritten</i>. Deletion still
@@ -138,8 +143,9 @@ public class MigrationGenerator {
             new ExcludedRow("property_category", "6d0f1247-e398-03b4-aa5e-269ade84af52"),
             // custom-sub-menu — the renderer
             new ExcludedRow("action", "e587b6a0-ef4c-2f7b-4a69-5c8fc19f22f2"),
-            // custom-sub-menu-json — the menu document (content column)
-            new ExcludedRow("action", "30bb03df-85fe-4c5d-bcaf-43c8b99044ba")
+            // custom-sub-menu-json — the menu document, now a properties row (key
+            // 'custom-sub-menu-json' under the 'storage' root) instead of an action's content
+            new ExcludedRow("properties", "f74da10c-19be-4ac6-b03d-e50b3bba9bfa")
     );
 
     // ---------------------------------------------------------------------
