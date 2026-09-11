@@ -58,6 +58,7 @@ public class ExecutionContext {
     String actionCode;
 
     private static final String REQUEST_PARAMETERS = "request-parameters";
+    public static final String __VARIABLES = "__variables";
     private static final String PARAMETERS = "parameters";
     private static final Pattern propertyRegexp = Pattern.compile("\\{(?:[A-Za-z0-9_-]+)(?:\\.[A-Za-z0-9_-]+)*\\}");
 
@@ -126,6 +127,10 @@ public class ExecutionContext {
         }
 
         return Arrays.copyOf(parts, parts.length - 1);
+    }
+
+    public String getVariables() {
+      return variables.toString();
     }
 
     private String getField(String path) {

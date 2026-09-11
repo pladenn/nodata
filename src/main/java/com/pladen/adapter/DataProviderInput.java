@@ -2,6 +2,7 @@ package com.pladen.adapter;
 
 import com.pladen.dto.ExecutionContext;
 import com.pladen.dto.Parameter;
+import java.util.Optional;
 import lombok.Builder;
 import lombok.Value;
 
@@ -20,4 +21,10 @@ public class DataProviderInput {
     List<Parameter> parameters;
     Map<String, String> properties;
     ExecutionContext executionContext;
+
+    public String getVariables() {
+      return Optional.ofNullable(executionContext)
+          .map(ExecutionContext::getVariables)
+          .orElse(null);
+    }
 }

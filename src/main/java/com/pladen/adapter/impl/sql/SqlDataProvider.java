@@ -1,5 +1,6 @@
 package com.pladen.adapter.impl.sql;
 
+import static com.pladen.dto.ExecutionContext.__VARIABLES;
 import static com.pladen.entity.DataType.DATE;
 import static com.pladen.entity.DataType.STRING;
 import static com.pladen.entity.DataType.TEXT;
@@ -105,8 +106,10 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
         }
 
         if ("SQL_DML".equals(sqlInput.getMethod())) {
-            final int modified = template
-                    .update(query, prepareQueryParams(sqlInput.getParameters()));
+            final MapSqlParameterSource params = prepareQueryParams(sqlInput.getParameters());
+            addVariables(sqlInput, params);
+
+            final int modified = template.update(query, params);
 
             if (modified < 1) {
                 throw new RuntimeException("Nothing is modified");
@@ -116,9 +119,49 @@ public class SqlDataProvider extends AbstractSqlDataProvider {
         } else if ("SQL_BLOCK".equals(sqlInput.getMethod())) {
             return executeSqlBlock(sqlInput.getParameters(), template, query);
         } else {
-            return template
-                .query(query, prepareQueryParams(sqlInput.getParameters()), this::mapResultSet);
+          final MapSqlParameterSource params = prepareQueryParams(sqlInput.getParameters());
+          addVariables(sqlInput, params);
+
+          // Enforce read-only at the JDBC/Postgres level, not by inspecting the query text -- this
+          // rejects any write however it's disguised (e.g. a data-modifying CTE with RETURNING).
+          // The connection is pooled per (url, login) in AbstractSqlDataProvider, so both flags MUST
+          // be reset before the connection goes back to the pool. Must run the query through a
+          // NamedParameterJdbcTemplate pinned to THIS SAME connection (SingleConnectionDataSource) --
+          // otherwise template.query() below can pull a different pooled connection that never had
+          // setReadOnly(true) applied, silently defeating the whole check (same hazard executeSqlBlock
+          // already works around above).
+          // Pg's JDBC driver only actually enforces setReadOnly(true) against an explicit transaction
+          // (autoCommit=false + a real BEGIN) -- under Hikari's default autoCommit=true every statement
+          // is its own implicit transaction and the driver never attaches the hint to anything sent to
+          // Postgres, so the read-only flag is silently a no-op unless autoCommit is turned off here too.
+          return template.getJdbcTemplate().execute((Connection con) -> {
+              final boolean originalAutoCommit = con.getAutoCommit();
+              con.setAutoCommit(false);
+              con.setReadOnly(true);
+              try {
+                  final NamedParameterJdbcTemplate readOnlyTemplate =
+                          new NamedParameterJdbcTemplate(new SingleConnectionDataSource(con, true));
+                  final Pair<List<String>, JsonNode> result = readOnlyTemplate.query(query, params, this::mapResultSet);
+                  con.commit();
+                  return result;
+              } catch (Exception e) {
+                  con.rollback();
+                  throw e;
+              } finally {
+                  con.setReadOnly(false);
+                  con.setAutoCommit(originalAutoCommit);
+              }
+          });
         }
+    }
+
+    private void addVariables(SqlInput sqlInput, MapSqlParameterSource params) {
+      sqlInput.getParameters()
+          .stream()
+          .map(Parameter::getName)
+          .filter(__VARIABLES::contains)
+          .findAny()
+          .ifPresent(ignore -> params.addValue(__VARIABLES, sqlInput.getVariables()));
     }
 
     private String logQueryWithParameters(String query, List<Parameter> parameters) {
