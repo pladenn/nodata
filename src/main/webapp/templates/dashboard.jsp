@@ -453,7 +453,7 @@
 
     }
 
-    function applyButtonGetRequest(parameters) {
+    function buildApplyButtonGetUrl(parameters) {
         let redirectUrl = new URL(window.location.origin);
         redirectUrl.pathname = window.location.pathname;
         redirectUrl = toActionURL(redirectUrl);
@@ -470,18 +470,24 @@
 
         addOriginalUrl(redirectUrl.searchParams, mainData.originalUrl, mainData.originalTitle);
 
-        window.location.href = redirectUrl.href;
+        return redirectUrl;
     }
 
+    function applyButtonGetRequest(parameters) {
+        window.location.href = buildApplyButtonGetUrl(parameters).href;
+    }
+
+    const APPLY_BUTTON_URL_LENGTH_LIMIT = 1000;
+
     function getApplyButtonAction(parameters) {
-        if (mainData.applyButtonPost === true) {
-            return function () {
-                applyButtonPostRequest(parameters);
-            };
-        }
         return function () {
-            applyButtonGetRequest(parameters);
-        }
+            let url = buildApplyButtonGetUrl(parameters);
+            if (url.href.length > APPLY_BUTTON_URL_LENGTH_LIMIT) {
+                applyButtonPostRequest(parameters);
+            } else {
+                window.location.href = url.href;
+            }
+        };
     }
 
     function applyButtonPostRequest(parameters) {
@@ -622,7 +628,7 @@
                 paramDiv.insertBefore(input, button);
             }
         }
-        button.onclick = getApplyButtonAction(parameters, mainData.applyButtonPost);
+        button.onclick = getApplyButtonAction(parameters);
     }
 
     function clearParameters() {

@@ -133,7 +133,6 @@ public class ActionProcessService {
                 .tab(DATA)
                 .postProcess(action.getPostProcess())
                 .redirect(executionContext.populatePlaceholders(action.getRedirect()))
-                .applyButtonPost(action.isPostRequest())
                 .logs(executionContext.getLog())
                 .build();
         } catch (Exception e) {
@@ -228,7 +227,6 @@ public class ActionProcessService {
                 .systemParameters(getSystemParameters(actionCode))
                 .actionLinks(getActionLinkMappings(executionContext))
                 .postProcess(action.getPostProcess())
-                .applyButtonPost(action.isPostRequest())
                 .logs(executionContext.getLog())
                 .build();
         } catch (Exception e) {

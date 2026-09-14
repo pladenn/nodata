@@ -147,16 +147,11 @@ public class ExecutionContext {
 
     public void putSystemProperties(Map<String, String> values) {
         putProperties("properties.system", values);
-        putProperties("context.system", values);
         putProperties("properties.system", values);
-        putProperties("context.system", values);
     }
 
     public void putEnvironmentProperties(Map<String, String> values) {
-        putProperties("properties.env", values);
-        putProperties("context.env", values);
         putProperties("properties.environment", values);
-        putProperties("context.environment", values);
     }
 
     public ExecutionContext putRequestParameters(Map<String, String> requestParameters) {
