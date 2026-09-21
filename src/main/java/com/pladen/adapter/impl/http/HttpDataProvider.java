@@ -15,7 +15,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.commons.lang3.tuple.Pair;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
@@ -25,6 +28,7 @@ import org.springframework.web.util.UriBuilder;
 public class HttpDataProvider implements DataProvider {
     private static final String CODE = "code";
     private static final String BODY = "body";
+    private static final String CONTENT = "content";
 
     private final CommonHelper commonHelper;
 
@@ -46,16 +50,28 @@ public class HttpDataProvider implements DataProvider {
         final RestClient.RequestBodySpec request = RestClient.create(URI.create(url).toString())
                 .method(HttpMethod.valueOf(httpInput.getMethod()))
                 .uri(uriBuilder -> buildUri(uriBuilder, httpInput))
-                .headers(httpHeaders -> httpHeaders.addAll(httpInput.getHeaders()));
+                .headers(httpHeaders -> httpHeaders.addAll(httpInput.getHeaders()))
+                .headers(httpHeaders -> httpHeaders.putIfAbsent(HttpHeaders.CONTENT_TYPE,
+                        List.of(MediaType.APPLICATION_JSON.toString())));
 
         if (nonNull(httpInput.getContent())) {
             request.body(prepareBody(httpInput));
         }
 
-        final String responseBody = request.retrieve()
-                .body(String.class);
+        final ResponseEntity<String> response = request.retrieve().toEntity(String.class);
+        final String responseBody = response.getBody();
+        final MediaType contentType = response.getHeaders().getContentType();
 
-        return  Pair.of(List.of("body"), commonHelper.createJsonNode(responseBody));
+        // Not every downstream service returns JSON (e.g. an XML API) -- unconditionally calling
+        // objectMapper.readTree(responseBody) threw an uncaught JsonProcessingException for those,
+        // surfacing as a raw 500 with no nodata error envelope. Trust the declared Content-Type
+        // first, then confirm with an actual parse attempt, and fall back to the raw body under
+        // "content" instead of failing when the response genuinely isn't JSON.
+        final boolean declaredJson = isNull(contentType) || contentType.isCompatibleWith(MediaType.APPLICATION_JSON);
+        if (declaredJson && commonHelper.isParsableJson(responseBody)) {
+            return Pair.of(List.of(BODY), commonHelper.createJsonNode(responseBody));
+        }
+        return Pair.of(List.of(CONTENT), commonHelper.createObjectNode().put(CONTENT, responseBody));
     }
 
     private URI buildUri(UriBuilder uriBuilder, HttpInput httpInput) {

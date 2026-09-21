@@ -47,6 +47,7 @@ public abstract class AbstractSqlDataProvider implements DataProvider {
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
+        config.setConnectionTimeout(15000);
         return config;
     }
 

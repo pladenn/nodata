@@ -71,4 +71,20 @@ public class CommonHelper {
         return false;
       }
   }
+
+    // Unlike isValidJson (which excludes arrays -- it exists to gate "splat this request body into
+    // a param map", where a top-level array can't become a Map), this is a plain parse check: true
+    // for any body objectMapper can parse, object or array. HttpDataProvider uses this to decide
+    // whether a downstream response is JSON at all, e.g. distinguishing a JSON API from an XML one.
+    public boolean isParsableJson(String json) {
+      if (json == null || json.isBlank()) {
+        return false;
+      }
+      try {
+        objectMapper.readTree(json);
+        return true;
+      } catch (JsonProcessingException e) {
+        return false;
+      }
+    }
 }
