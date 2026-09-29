@@ -95,6 +95,7 @@
             position: absolute;
             top: 0px;
             left: var(--lf);
+            z-index: 100;
         }
 
         ul#navmenu ul[class^="sub"] a {
@@ -305,6 +306,8 @@
             outline: none;
         }
     </style>
+
+    <script type="module" src="${pageContext.request.contextPath}/js/index.min.js?register"></script>
 </head>
 
 <body>
@@ -329,9 +332,16 @@
 <div id="data" class="tabcontent">
     <div class="dropdown" style="float: left; padding: 10px;">
         <button id="action_shared_actions" class="dropbtn">Actions</button>
-        <button id="copy_source_data">Copy source data</button>
-        <button id="copy_script">Copy script</button>
     </div>
+
+<%--    <div>--%>
+<%--        <zero-md>--%>
+<%--            <script type="text/markdown">--%>
+<%--# Hello World--%>
+<%--This is **Markdown** being rendered inside an HTML tag!--%>
+<%--            </script>--%>
+<%--        </zero-md>--%>
+<%--    </div>--%>
     <table id="data_table" style="table-layout:auto">
     </table>
 </div>
@@ -640,23 +650,6 @@
         button.onclick = null;
     }
 
-    function setCopyButtons(columns, data, script) {
-        var dataButton = document.getElementById("copy_source_data");
-        var scriptButton = document.getElementById("copy_script");
-
-        dataButton.onclick = function () {
-            navigator.clipboard.writeText(JSON.stringify({columns: columns, data: data}));
-        };
-
-        scriptButton.onclick = function () {
-            if (script == null) {
-                navigator.clipboard.writeText('');
-                return;
-            }
-            navigator.clipboard.writeText(script);
-        };
-    }
-
     function openTab(evt, tab) {
         var i, tabcontent, tablinks;
         tabcontent = document.getElementsByClassName("tabcontent");
@@ -953,8 +946,6 @@
 
       let _columns = mainData.columns;
       let _data = mainData.data;
-
-      setCopyButtons(mainData.columns, mainData.data, mainData.postProcess);
 
       let actionTarget = [];
       let rowTarget = [];
