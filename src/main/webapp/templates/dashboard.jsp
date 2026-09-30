@@ -731,7 +731,6 @@
                 let td = document.createElement("td");
                 let val = eval("line" + formatObjectPath(column.path));
                 val = val === null ? val : val.replace("\\/script>", '/script>')
-                alert(val);
                 td.innerHTML = val;
                 tr.appendChild(td);
             }
