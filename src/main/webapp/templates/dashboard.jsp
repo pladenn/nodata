@@ -730,7 +730,7 @@
             for (let column of columns) {
                 let td = document.createElement("td");
                 let val = eval("line" + formatObjectPath(column.path));
-                val = val === null ? val : val.replace("\\/script>", '/script>')
+                val = val === null || typeof val !== 'string' ? val : val.replace("\\/script>", '/script>')
                 td.innerHTML = val;
                 tr.appendChild(td);
             }
