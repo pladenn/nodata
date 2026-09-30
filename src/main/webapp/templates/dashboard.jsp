@@ -613,9 +613,11 @@
                 paramDiv.insertBefore(label, button);
                 input = document.createElement("textarea");
                 input.id = parameter.id;
-                input.value = parameterValue;
-                input.rows = 20;
+                input.rows = parameterValue === null
+                    ? 20
+                    : (parameterValue.match(/\r\n|\r|\n/g) || []).length + 4;
                 input.cols = 300;
+                input.value = parameterValue;
                 input.disabled = !parameter.editable;
                 paramDiv.insertBefore(input, button);
             } else if (parameter.type === "BOOLEAN") {
